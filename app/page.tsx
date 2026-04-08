@@ -2,8 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import UserNavbar from "../components/user-navbar";
+import {
+  Box,
+  Button,
+  Container,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Link,
+  Paper,
+  Radio,
+  RadioGroup,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { CorporateBanner } from "@/components/corporate-banner";
+import { CorporateFooter } from "@/components/corporate-footer";
+import UserNavbar from "@/components/user-navbar";
 import { apiGet } from "../lib/api";
+import { paperHoverSx } from "../lib/ui";
 
 type RouteSummary = {
   from: string;
@@ -20,10 +37,13 @@ function formatDuration(minutes: number) {
 
 export default function HomePage() {
   const router = useRouter();
+  const [tripType, setTripType] = useState("Tekyon");
   const [from, setFrom] = useState("İstanbul");
   const [to, setTo] = useState("Ankara");
-  const [date, setDate] = useState("Bugün");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [routeCards, setRouteCards] = useState<RouteSummary[]>([]);
+  const [passengerCount, setPassengerCount] = useState(1);
+  const [luggageCount, setLuggageCount] = useState(0);
 
   useEffect(() => {
     apiGet<RouteSummary[]>("/routes")
@@ -38,125 +58,369 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa] text-[#121f36]">
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#121f36" }}>
       <UserNavbar active="home" />
+      <CorporateBanner
+        eyebrow="lorem ipsum dolor"
+        title="Otobüs bileti arama, rezervasyon ve yönetimi tek çatı altında"
+        subtitle="Kalkış, varış ve tarih bazlı arama yapın; işletmeler için de düzenli, güvenilir bir panel deneyimi kullanın."
+      />
 
-      <main className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:px-8">
-        <section className="text-center">
-          <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
-            Otobüs biletinizi
-            <span className="block text-[#2a64e8]">kolayca ayırtın</span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-3xl text-sm text-[#4f5f7d] sm:text-xl">
-            Gerçek zamanlı sefer takibi, güvenli ödeme ve anında rezervasyon onayı ile yolculuğunuzu
-            zahmetsizce planlayın.
-          </p>
-
-          <form onSubmit={onSearch} className="mx-auto mt-8 max-w-4xl rounded-2xl border border-[#d9e0ee] bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-xl font-medium">Sizin için uygun seferi bulun</h2>
-            <div className="mt-4 grid gap-3 text-left md:grid-cols-4">
-              <label className="space-y-1 text-xs text-[#55627f]">
-                <span>Nereden</span>
-                <input
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="w-full rounded-md border border-[#d8dfed] px-3 py-2 text-sm text-[#1a2740]"
-                  placeholder="Kalkış şehri"
-                />
-              </label>
-              <label className="space-y-1 text-xs text-[#55627f]">
-                <span>Nereye</span>
-                <input
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="w-full rounded-md border border-[#d8dfed] px-3 py-2 text-sm text-[#1a2740]"
-                  placeholder="Varış şehri"
-                />
-              </label>
-              <label className="space-y-1 text-xs text-[#55627f]">
-                <span>Yolculuk tarihi</span>
-                <input
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full rounded-md border border-[#d8dfed] px-3 py-2 text-sm text-[#1a2740]"
-                  placeholder="Tarih seçin"
-                />
-              </label>
-              <button
-                type="submit"
-                className="mt-auto rounded-md bg-[#2a64e8] px-4 py-2 text-sm font-medium text-white hover:bg-[#1f53c8]"
+      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 3 }}>
+        <Box sx={{ textAlign: "center" }}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2, sm: 3 },
+              borderColor: "#d9e0ee",
+              boxShadow: "none",
+            }}
+          >
+            <FormControl sx={{ width: "100%", display: "flex", alignItems: "flex-start" }}>
+              <FormLabel id="trip-type-label" sx={{ fontSize: "0.82rem", color: "#5c6883" }}>
+                Seyahat tipi
+              </FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="trip-type-label"
+                name="trip-type"
+                value={tripType}
+                onChange={(event) => setTripType(event.target.value)}
               >
-                Otobüs Ara
-              </button>
-            </div>
-          </form>
-        </section>
-      </main>
+                <FormControlLabel value="Tekyon" control={<Radio />} label="Tek Yön" />
+                <FormControlLabel value="Gidisdonus" control={<Radio />} label="Gidiş Dönüş" />
+              </RadioGroup>
+            </FormControl>
+            <Typography
+              variant="h6"
+              sx={{ fontSize: "1rem", fontWeight: 600, textAlign: "left" }}
+            >
+              Uygun seferi bulun
+            </Typography>
+            <Box
+              component="form"
+              onSubmit={onSearch}
+              sx={{
+                mt: 2,
+                display: "grid",
+                gap: 1.5,
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr auto" },
+              }}
+            >
+              <TextField
+                size="small"
+                label="Nereden"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                placeholder="Kalkış şehri"
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="Nereye"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                placeholder="Varış şehri"
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="Yolcu Sayısı"
+                value={passengerCount}
+                onChange={(e) => setPassengerCount(Number(e.target.value))}
+                type="number"
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+                 <TextField
+                size="small"
+                label="Bagaj"
+                value={luggageCount}
+                onChange={(e) => setLuggageCount(Number(e.target.value))}
+                type="number"
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="Tarih"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                type="date"
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                disableElevation
+                sx={{
+                  minHeight: 40,
+                  px: 3,
+                  bgcolor: "#2a64e8",
+                  textTransform: "none",
+                  fontSize: "0.875rem",
+                  boxShadow: "none",
+                  alignSelf: "end",
+                }}
+              >
+                Ara
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
 
-      <section className="bg-[]">
-        <div className=" grid max-w-6xl grid-cols-2 gap-6 px-4 py-9 text-white sm:grid-cols-4 sm:px-8">
-          <div>
-            <p className="text-4xl font-semibold">500.000+</p>
-            <p className="text-sm text-white/90">Memnun yolcu</p>
-          </div>
-          <div>
-            <p className="text-4xl font-semibold">2000+</p>
-            <p className="text-sm text-white/90">Aktif hat</p>
-          </div>
-          <div>
-            <p className="text-4xl font-semibold">500+</p>
-            <p className="text-sm text-white/90">Şöför</p>
-          </div>
-          <div>
-            <p className="text-4xl font-semibold">1500+</p>
-            <p className="text-sm text-white/90">Aktif sefer</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-8">
-        <div className="text-center">
-          <h3 className="text-2xl font-semibold">Neden Near East Ulaşım?</h3>
-          <p className="mt-2 text-[#566583]">Daha sade, güvenilir ve kurumsal bir rezervasyon deneyimi sunar</p>
-        </div>
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 4 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              lg: "repeat(4, 1fr)",
+            },
+          }}
+        >
           {[
-            ["Güvenli Ödeme", "Kart, dijital cüzdan ve havale seçenekleriyle güvenli işlem"],
-            ["Canlı Takip", "Seferinizi anlık izleyin ve durum güncellemelerini takip edin"],
-            ["Kolay Rezervasyon", "Birkaç adımda hızlıca bilet ayırtın"],
-            ["7/24 Destek", "İhtiyacınız olduğunda ulaşabileceğiniz destek kanalı"],
-          ].map(([title, description]) => (
-            <article key={title} className="rounded-2xl border border-[#d8deec] bg-white p-5 text-center">
-              <h4 className="text-xl font-medium">{title}</h4>
-              <p className="mt-3 text-sm text-[#5d6c87]">{description}</p>
-            </article>
+            ["500.000+", "Memnun yolcu"],
+            ["2000+", "Aktif hat"],
+            ["500+", "Şoför"],
+            ["1500+", "Aktif sefer"],
+          ].map(([value, label]) => (
+            <Paper
+              key={label}
+              variant="outlined"
+              sx={{
+                flex: 1,
+                minWidth: 180,
+                p: 2.25,
+                textAlign: "center",
+                boxShadow: "none",
+                cursor: "default",
+                ...paperHoverSx,
+              }}
+            >
+              <Typography
+                sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#1f3f7a" }}
+              >
+                {value}
+              </Typography>
+              <Typography
+                sx={{ mt: 0.5, fontSize: "0.8rem", color: "#66758a" }}
+              >
+                {label}
+              </Typography>
+            </Paper>
           ))}
-        </div>
-      </section>
+        </Box>
+      </Container>
 
-      <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-8">
-        <div className="text-center">
-          <h3 className="text-3xl font-semibold">Popüler Hatlar</h3>
-          <p className="mt-2 text-[#566583]">Sık tercih edilen rotalara göz atın</p>
-        </div>
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 4 }}>
+        <Box sx={{ textAlign: "center" }}>
+          <Typography
+            variant="h5"
+            sx={{ fontSize: "1.25rem", fontWeight: 700 }}
+          >
+            Neden Near East Ulaşım?
+          </Typography>
+          <Typography sx={{ fontSize: "0.9rem", color: "#5a6a84" }}>
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusamus in assumenda sed dolore cupiditate explicabo maxime praesentium ipsa beatae soluta quibusdam, ullam corporis aut sequi, et, tempora dolorum dolorem dignissimos?
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            mt: 3,
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "1fr 1fr",
+              lg: "repeat(4, 1fr)",
+            },
+          }}
+        >
+          {[
+            [
+              "Güvenli Ödeme",
+              "Kart, dijital cüzdan ve havale seçenekleriyle güvenli işlem",
+            ],
+            [
+              "Canlı Takip",
+              "Seferinizi anlık izleyin ve durum güncellemelerini takip edin",
+            ],
+            ["Kolay Rezervasyon", "Birkaç adımda hızlıca bilet ayırtın"],
+            [
+              "7/24 Destek",
+              "İhtiyacınız olduğunda ulaşabileceğiniz destek kanalı",
+            ],
+          ].map(([title, description]) => (
+            <Paper
+              key={title}
+              variant="outlined"
+              sx={{
+                p: 2.25,
+                textAlign: "center",
+                boxShadow: "none",
+                cursor: "default",
+                ...paperHoverSx,
+              }}
+            >
+              <Typography sx={{ fontSize: "0.95rem", fontWeight: 600 }}>
+                {title}
+              </Typography>
+              <Typography sx={{ mt: 1, fontSize: "0.82rem", color: "#5d6c87" }}>
+                {description}
+              </Typography>
+            </Paper>
+          ))}
+        </Box>
+      </Container>
+
+      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pb: 6 }}>
+        <Box sx={{ textAlign: "center" }}>
+          <Typography
+            variant="h5"
+            sx={{ fontSize: "1.25rem", fontWeight: 700 }}
+          >
+            Popüler Hatlar
+          </Typography>
+          <Typography sx={{ fontSize: "0.9rem", color: "#5a6a84" }}>
+            Sık tercih edilen rotalara göz atın
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            mt: 3,
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "1fr 1fr",
+              lg: "repeat(4, 1fr)",
+            },
+          }}
+        >
           {routeCards.map((item) => (
-            <article key={`${item.from}-${item.to}`} className="rounded-2xl border border-[#d8deec] bg-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg font-semibold">{item.from}</p>
-                  <p className="text-sm text-[#5c6883]">ile {item.to}</p>
-                </div>
-                <span className="rounded-md bg-[#eef2fa] px-2 py-0.5 text-xs">₺ {item.basePrice}</span>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-sm text-[#5c6883]">
+            <Paper
+              key={`${item.from}-${item.to}`}
+              variant="outlined"
+              sx={{
+                p: 2,
+                boxShadow: "none",
+                cursor: "default",
+                ...paperHoverSx,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontSize: "0.95rem", fontWeight: 700 }}>
+                    {item.from}
+                  </Typography>
+                  <Typography sx={{ fontSize: "0.82rem", color: "#5c6883" }}>
+                    ile {item.to}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1,
+                    bgcolor: "#eef2fa",
+                    fontSize: "0.75rem",
+                    color: "#1d2d4d",
+                  }}
+                >
+                  ₺ {item.basePrice}
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  mt: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: "0.82rem",
+                  color: "#5c6883",
+                }}
+              >
                 <span>{formatDuration(item.durationMinutes)}</span>
                 <span>4,5</span>
-              </div>
-            </article>
+              </Box>
+            </Paper>
           ))}
-        </div>
-      </section>
-    </div>
+        </Box>
+      </Container>
+
+      <Container maxWidth="lg" sx={{ mt: 2, px: { xs: 2, sm: 4 }, pb: 6 }}>
+        <Box sx={{ textAlign: "center" }}>
+          <Typography sx={{ fontSize: "0.95rem", fontWeight: 700 }}>Daha fazla rota için takip edin</Typography>
+        </Box>
+        <Box
+          sx={{
+            mt: 2,
+            display: "grid",
+            gap: 1.5,
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+          }}
+        >
+          {[
+            {
+              title: "Misafir Listesi",
+              description:
+                "Konaklayacak kişileri kaydedin, her defasında bilgilerini girmeden hızlıca araç, transfer ve otel rezervasyonunuzu yapın, uçak biletinizi satın alın.",
+            },
+            {
+              title: "Özel Fırsatlardan Yararlanın",
+              description: "Üyelere özel indirim fırsatlarından yararlanın.",
+            },
+            {
+              title: "Seyahatlerinizi Yönetin",
+              description:
+                "Tüm uçak, otel, araç ve transfer rezervasyonlarınızı tek bir yerden takip edip yönetebilirsiniz.",
+            },
+            {
+              title: "Fatura Adresleri",
+              description:
+                "Fatura adreslerinizi kaydedin, her defasında bilgilerinizi girmeden hızlıca araç, transfer ve otel rezervasyonunuzu yapın, uçak biletinizi satın alın.",
+            },
+          ].map((item) => (
+            <Paper
+              key={item.title}
+              variant="outlined"
+              sx={{
+                p: 1.5,
+                border: "1px solid #d9e0ee",
+                borderRadius: 1,
+                bgcolor: "#f9fafe",
+                boxShadow: "none",
+                cursor: "default",
+                ...paperHoverSx,
+              }}
+            >
+              <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#" }}>{item.title}</Typography>
+              <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#5c6883" }}>{item.description}</Typography>
+            </Paper>
+          ))}
+        </Box>
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
+          <Button href="/register" variant="contained" sx={{ textTransform: "none", bgcolor: "#2a64e8", boxShadow: "none" }}>
+            Üye Ol
+          </Button>
+        </Box>
+      </Container>
+
+      <CorporateFooter />
+    </Box>
   );
 }

@@ -1,0 +1,140 @@
+.mobileToggleWrap {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.mobileToggleButton {
+  background-color: #f6f8fc;
+  border: 1px solid #dbe3f1;
+  border-radius: 8px;
+  color: #24324f;
+}
+
+.mobileToggleButton:hover {
+  background-color: #eaf0ff;
+}
+
+.drawerPaper {
+  width: 320px;
+  background-color: #fff;
+}
+
+.drawerHeader {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #dbe3f1;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #13223f;
+}
+
+.subtitleMobile {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: #5d6c87;
+}
+
+.subtitleDesktop {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: #5d6c87;
+}
+
+.drawerContent {
+  padding: 20px;
+  flex: 1;
+  overflow: auto;
+}
+
+.menuList {
+  display: grid;
+  gap: 8px;
+}
+
+.menuItem {
+  border-radius: 8px;
+  border: 1px solid #e5eaf2;
+  background-color: #f6f8fc;
+}
+
+.menuItem:hover {
+  background-color: #edf2ff;
+}
+
+.menuItem:global(.Mui-selected) {
+  background-color: #eaf0ff;
+  border-color: #c9d8ff;
+}
+
+.menuItem:global(.Mui-selected):hover {
+  background-color: #dfe9ff;
+}
+
+.menuItemText :global(.MuiListItemText-primary) {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #24324f;
+}
+
+.menuItem:global(.Mui-selected) .menuItemText :global(.MuiListItemText-primary) {
+  color: #2a64e8;
+}
+
+.drawerDivider {
+  border-color: #dbe3f1;
+}
+
+.actions {
+  padding: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.secondaryButton {
+  text-transform: none;
+  border-color: #d8deec;
+  color: #24324f;
+}
+
+.logoutButton {
+  text-transform: none;
+  background-color: #101d35;
+  box-shadow: none;
+}
+
+.desktopSidebar {
+  padding: 20px;
+  border: 1px solid #dbe3f1;
+  box-shadow: none;
+  position: sticky;
+  top: 16px;
+  background-color: #fff;
+  display: none;
+}
+
+.desktopMenuList {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.desktopActions {
+  margin-top: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (min-width: 1200px) {
+  .mobileToggleWrap {
+    display: none;
+  }
+
+  .desktopSidebar {
+    display: block;
+  }
+}

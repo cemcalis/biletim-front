@@ -1,0 +1,201 @@
+.pageRoot {
+  min-height: 100vh;
+  background-color: #f4f6fa;
+  color: #12203a;
+  padding: 24px 16px;
+}
+
+.loginRoot {
+  min-height: 100vh;
+  background-color: #f4f6fa;
+  color: #12203a;
+  padding: 48px 16px;
+}
+
+.mainContainer {
+  display: grid;
+  gap: 20px;
+}
+
+.workspaceLayout {
+  display: grid;
+  gap: 20px;
+}
+
+.sidebarColumn {
+  min-width: 0;
+}
+
+.loginCard {
+  padding: 24px;
+  border: 1px solid #dce3f1;
+  box-shadow: none;
+}
+
+.pageCard {
+  padding: 20px;
+  border: 1px solid #dce3f1;
+  box-shadow: none;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.headerWrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.subtitle {
+  font-size: 0.88rem;
+  color: #5b6b87;
+}
+
+.loginForm {
+  margin-top: 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.primaryButton {
+  align-self: flex-start;
+  text-transform: none;
+  background-color: #2a64e8;
+  box-shadow: none;
+}
+
+.logoutButton {
+  text-transform: none;
+  border-color: #f0c5cc;
+  color: #d34255;
+  box-shadow: none;
+}
+
+.loginError {
+  margin-top: 16px;
+  font-size: 0.8rem;
+  color: #d34255;
+}
+
+.metricGrid {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+.metricCard {
+  padding: 16px;
+  background-color: #eef3ff;
+  border: 1px solid #dbe4fb;
+  box-shadow: none;
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 2px rgba(16, 29, 53, 0.08);
+}
+
+.metricLabel {
+  font-size: 0.76rem;
+  color: #5b6b87;
+}
+
+.metricValue {
+  margin-top: 3px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.infoText {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: #2a64e8;
+}
+
+.sectionTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.emptyText {
+  margin-top: 12px;
+  font-size: 0.88rem;
+  color: #5b6b87;
+}
+
+.listGrid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.requestCard {
+  padding: 16px;
+  border: 1px solid #e4e9f4;
+  box-shadow: none;
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.requestCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 2px rgba(16, 29, 53, 0.08);
+}
+
+.requestTitle {
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.requestMeta {
+  font-size: 0.83rem;
+  color: #5b6b87;
+}
+
+.requestMetaSpaced {
+  margin-top: 3px;
+  font-size: 0.83rem;
+  color: #5b6b87;
+}
+
+.approveButton {
+  margin-top: 12px;
+  text-transform: none;
+  font-size: 0.75rem;
+  background-color: #2a64e8;
+  box-shadow: none;
+}
+
+@media (min-width: 600px) {
+  .pageRoot {
+    padding: 24px 32px;
+  }
+
+  .loginCard {
+    padding: 32px;
+  }
+
+  .pageCard {
+    padding: 24px;
+  }
+
+  .metricGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .workspaceLayout {
+    grid-template-columns: 280px 1fr;
+    align-items: start;
+  }
+}

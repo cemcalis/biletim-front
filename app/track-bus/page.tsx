@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import UserNavbar from "../../components/user-navbar";
+import { Box, Button, Container, Paper, TextField, Typography } from "@mui/material";
+import UserNavbar from "@/components/user-navbar";
 import { apiGet } from "../../lib/api";
 
 type Booking = {
@@ -39,39 +40,38 @@ export default function TrackBusPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa] text-[#12203a]">
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#12203a" }}>
       <UserNavbar active="track" />
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-8">
-        <section className="rounded-xl border border-[#dce3f1] bg-white p-6">
-          <h1 className="text-3xl font-semibold">Sefer Takibi</h1>
-          <p className="mt-2 text-sm text-[#5b6b87]">Rezervasyon kodu ile sefer durumunu görüntüleyin.</p>
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, border: "1px solid #dce3f1", boxShadow: "none" }}>
+          <Typography sx={{ fontSize: "1.8rem", fontWeight: 700, letterSpacing: "-0.03em" }}>Sefer Takibi</Typography>
+          <Typography sx={{ mt: 1, fontSize: "0.9rem", color: "#5b6b87" }}>Rezervasyon kodu ile sefer durumunu görüntüleyin.</Typography>
 
-          <form onSubmit={onTrack} className="mt-5 flex gap-2">
-            <input
-              value={bookingCode}
-              onChange={(e) => setBookingCode(e.target.value)}
-              className="flex-1 rounded-md border border-[#d8deec] px-3 py-2"
-              placeholder="Örn: RB-123456"
-            />
-            <button className="rounded-md bg-[#2a64e8] px-4 py-2 text-sm font-medium text-white">Takip Et</button>
-          </form>
+          <Box component="form" onSubmit={onTrack} sx={{ mt: 3, display: "flex", gap: 1.5, flexDirection: { xs: "column", sm: "row" } }}>
+            <TextField fullWidth size="small" value={bookingCode} onChange={(event) => setBookingCode(event.target.value)} label="Rezervasyon kodu" placeholder="Örn: RB-123456" />
+            <Button type="submit" variant="contained" disableElevation sx={{ px: 3, textTransform: "none", bgcolor: "#2a64e8", boxShadow: "none" }}>
+             İncele
+            </Button>
+          </Box>
 
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+          {error ? <Typography sx={{ mt: 2, fontSize: "0.82rem", color: "#d34255" }}>{error}</Typography> : null}
 
           {result ? (
-            <div className="mt-5 rounded-lg bg-[#f6f8fd] p-4 text-sm">
-              <p><strong>Kod:</strong> {result.bookingCode}</p>
-              <p><strong>Yolcu:</strong> {result.passengerName}</p>
-              <p><strong>Rota:</strong> {result.route}</p>
-              <p><strong>Firma:</strong> {result.company}</p>
-              <p><strong>Koltuk:</strong> {result.seatNumber}</p>
-              <p><strong>Durum:</strong> {result.status}</p>
-              <p><strong>Tarih:</strong> {result.travelDate}</p>
-              <p><strong>Saat:</strong> {result.departureTime} - {result.arrivalTime}</p>
-            </div>
+            <Paper elevation={0} sx={{ mt: 3, p: 2.5, bgcolor: "#f6f8fd", border: "1px solid #dfe5f1", boxShadow: "none" }}>
+              <Box sx={{ display: "grid", gap: 0.7 }}>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Kod:</strong> {result.bookingCode}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Yolcu:</strong> {result.passengerName}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Rota:</strong> {result.route}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Firma:</strong> {result.company}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Koltuk:</strong> {result.seatNumber}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Durum:</strong> {result.status}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Tarih:</strong> {result.travelDate}</Typography>
+                <Typography sx={{ fontSize: "0.88rem" }}><strong>Saat:</strong> {result.departureTime} - {result.arrivalTime}</Typography>
+              </Box>
+            </Paper>
           ) : null}
-        </section>
-      </main>
-    </div>
+        </Paper>
+      </Container>
+    </Box>
   );
 }

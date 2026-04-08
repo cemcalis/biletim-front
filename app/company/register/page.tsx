@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { Box, Button, Container, Paper, TextField, Typography } from "@mui/material";
 import { apiRequest } from "../../../lib/api";
 
 export default function CompanyRegisterPage() {
@@ -29,23 +30,29 @@ export default function CompanyRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa] px-4 py-10 text-[#12203a] sm:px-8">
-      <main className="mx-auto max-w-xl rounded-xl border border-[#dce3f1] bg-white p-6">
-        <h1 className="text-3xl font-semibold">Firma Kayit Basvurusu</h1>
-        <p className="mt-2 text-sm text-[#5b6b87]">Admin onayi sonrasi firma paneline giris yapabilirsiniz.</p>
-        <form onSubmit={onSubmit} className="mt-5 space-y-3">
-          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="w-full rounded-md border border-[#d8deec] px-3 py-2" placeholder="Firma adi" />
-          <input value={contactName} onChange={(e) => setContactName(e.target.value)} className="w-full rounded-md border border-[#d8deec] px-3 py-2" placeholder="Yetkili adi" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border border-[#d8deec] px-3 py-2" placeholder="Firma e-posta" type="email" />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-[#d8deec] px-3 py-2" placeholder="Sifre" type="password" />
-          <button className="rounded-md bg-[#2a64e8] px-4 py-2 text-sm font-medium text-white">Basvuru Gonder</button>
-        </form>
-        {message ? <p className="mt-3 text-sm text-[#2a64e8]">{message}</p> : null}
-        <p className="mt-4 text-sm text-[#5b6b87]">
-          Firma paneline donmek icin
-          <Link href="/company" className="ml-1 font-medium text-[#2a64e8] hover:underline">Giris sayfasi</Link>
-        </p>
-      </main>
-    </div>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", px: 2, py: 6, color: "#12203a" }}>
+      <Container maxWidth="sm">
+        <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, border: "1px solid #dce3f1", boxShadow: "none" }}>
+          <Typography sx={{ fontSize: "1.8rem", fontWeight: 700, letterSpacing: "-0.03em" }}>Firma Kayıt Başvurusu</Typography>
+          <Typography sx={{ mt: 1, fontSize: "0.9rem", color: "#5b6b87" }}>Admin onayı sonrası firma paneline giriş yapabilirsiniz.</Typography>
+          <Box component="form" onSubmit={onSubmit} sx={{ mt: 3, display: "grid", gap: 1.5 }}>
+            <TextField size="small" value={companyName} onChange={(event) => setCompanyName(event.target.value)} label="Firma adı" />
+            <TextField size="small" value={contactName} onChange={(event) => setContactName(event.target.value)} label="Yetkili adı" />
+            <TextField size="small" value={email} onChange={(event) => setEmail(event.target.value)} label="Firma e-posta" type="email" />
+            <TextField size="small" value={password} onChange={(event) => setPassword(event.target.value)} label="Şifre" type="password" />
+            <Button type="submit" variant="contained" disableElevation sx={{ alignSelf: "start", textTransform: "none", bgcolor: "#2a64e8", boxShadow: "none" }}>
+              Başvuru Gönder
+            </Button>
+          </Box>
+          {message ? <Typography sx={{ mt: 2, fontSize: "0.82rem", color: "#2a64e8" }}>{message}</Typography> : null}
+          <Typography sx={{ mt: 2.5, fontSize: "0.88rem", color: "#5b6b87" }}>
+            Firma paneline dönmek için
+            <Box component={Link} href="/company" sx={{ ml: 0.75, color: "#2a64e8", fontWeight: 600, textDecoration: "none" }}>
+              giriş sayfası
+            </Box>
+          </Typography>
+        </Paper>
+      </Container>
+    </Box>
   );
 }

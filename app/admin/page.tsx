@@ -1,7 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Box, Button, Container, Paper, TextField, Typography } from "@mui/material";
+import { CollapsibleSidebar } from "@/components/collapsible-sidebar";
 import { apiGet, apiRequest } from "../../lib/api";
+import styles from "./page.module.css";
 
 type AdminOverviewResponse = {
   metrics: {
@@ -102,56 +105,89 @@ export default function AdminPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-[#f4f6fa] px-4 py-10 text-[#12203a] sm:px-8">
-        <main className="mx-auto max-w-md rounded-xl border border-[#dce3f1] bg-white p-6">
-          <h1 className="text-3xl font-semibold">Admin Giris</h1>
-          <p className="mt-2 text-sm text-[#5b6b87]">Yonetim paneline sadece URL ile erisilir.</p>
-          <form onSubmit={onLogin} className="mt-5 space-y-3">
-            <input value={username} onChange={(e) => setUsername(e.target.value)} className="w-full rounded-md border border-[#d8deec] px-3 py-2" placeholder="Kullanici adi" />
-            <input value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-[#d8deec] px-3 py-2" placeholder="Sifre" type="password" />
-            <button className="rounded-md bg-[#2a64e8] px-4 py-2 text-sm font-medium text-white">Giris Yap</button>
-          </form>
-          {loginError ? <p className="mt-3 text-sm text-[#d34255]">{loginError}</p> : null}
-        </main>
-      </div>
+      <Box className={styles.loginRoot}>
+        <Container maxWidth="sm">
+          <Paper elevation={0} className={styles.loginCard}>
+            <Typography className={styles.title}>Admin Girişi</Typography>
+          
+            <Box component="form" onSubmit={onLogin} className={styles.loginForm}>
+              <TextField size="small" value={username} onChange={(event) => setUsername(event.target.value)} label="Kullanıcı adı" />
+              <TextField size="small" value={password} onChange={(event) => setPassword(event.target.value)} label="Şifre" type="password" />
+              <Button type="submit" variant="contained" disableElevation className={styles.primaryButton}>
+                Giriş Yap
+              </Button>
+            </Box>
+            {loginError ? <Typography className={styles.loginError}>{loginError}</Typography> : null}
+          </Paper>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa] px-4 py-8 text-[#12203a] sm:px-8">
-      <main className="mx-auto max-w-6xl space-y-4">
-        <section className="rounded-xl border border-[#dce3f1] bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-semibold">Admin Paneli</h1>
-              <p className="text-sm text-[#5b6b87]">Firma onaylari ve genel metrikler</p>
-            </div>
-            <button onClick={onLogout} className="rounded-md border border-[#f0c5cc] px-3 py-2 text-sm text-[#d34255]">Cikis Yap</button>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-4">
-            <div className="rounded-lg bg-[#eef3ff] p-3 text-sm">Rezervasyon: {overview?.metrics.totalBookings ?? 0}</div>
-            <div className="rounded-lg bg-[#eef3ff] p-3 text-sm">Aktif Kullanici: {overview?.metrics.activeUsers ?? 0}</div>
-            <div className="rounded-lg bg-[#eef3ff] p-3 text-sm">Hat: {overview?.metrics.busRoutes ?? 0}</div>
-            <div className="rounded-lg bg-[#eef3ff] p-3 text-sm">Gelir: ₺{overview?.metrics.revenue ?? 0}</div>
-          </div>
-          {info ? <p className="mt-3 text-sm text-[#2a64e8]">{info}</p> : null}
-        </section>
+    <Box className={styles.pageRoot}>
+      <Container maxWidth="lg" className={styles.mainContainer}>
+        <Box className={styles.workspaceLayout}>
+          <Box className={styles.sidebarColumn}>
+            <CollapsibleSidebar
+              title="Admin Menü"
+              subtitle="Yönetim araçları"
+              items={[
+                { label: "Ana Sayfa", href: "#", key: "overview" },
+                { label: "Firma Başvuruları", href: "#requests", key: "requests" },
+              ]}
+              active="overview"
+              onLogout={onLogout}
+              showLogout={true}
+            />
+          </Box>
 
-        <section className="rounded-xl border border-[#dce3f1] bg-white p-5">
-          <h2 className="text-xl font-semibold">Bekleyen Firma Kayitlari</h2>
-          {!requests.length ? <p className="mt-3 text-sm text-[#5b6b87]">Bekleyen basvuru yok.</p> : null}
-          <div className="mt-3 space-y-2">
-            {requests.map((request) => (
-              <article key={request.id} className="rounded-md border border-[#e4e9f4] p-3">
-                <p className="font-medium">{request.companyName}</p>
-                <p className="text-sm text-[#5b6b87]">Yetkili: {request.contactName}</p>
-                <p className="text-sm text-[#5b6b87]">E-posta: {request.email}</p>
-                <button onClick={() => void onApprove(request.id)} className="mt-2 rounded-md bg-[#2a64e8] px-3 py-1.5 text-xs font-medium text-white">Onayla</button>
-              </article>
-            ))}
-          </div>
-        </section>
-      </main>
-    </div>
+          <Box className={styles.mainContainer}>
+          <Paper elevation={0} className={styles.pageCard}>
+            <Box className={styles.headerWrap}>
+              <Box>
+                <Typography className={styles.title}>Admin Paneli</Typography>
+                <Typography className={styles.subtitle}>Firma onayları ve genel metrikler</Typography>
+              </Box>
+              <Button onClick={onLogout} variant="outlined" className={styles.logoutButton}>
+                Çıkış Yap
+              </Button>
+            </Box>
+            <Box className={styles.metricGrid}>
+              {[
+                { label: "Rezervasyon", value: overview?.metrics.totalBookings ?? 0 },
+                { label: "Aktif Kullanıcı", value: overview?.metrics.activeUsers ?? 0 },
+                { label: "Hat", value: overview?.metrics.busRoutes ?? 0 },
+                { label: "Gelir", value: `₺${overview?.metrics.revenue ?? 0}` },
+              ].map((item) => (
+                <Paper key={item.label} elevation={0} className={styles.metricCard}>
+                  <Typography className={styles.metricLabel}>{item.label}</Typography>
+                  <Typography className={styles.metricValue}>{item.value}</Typography>
+                </Paper>
+              ))}
+            </Box>
+            {info ? <Typography className={styles.infoText}>{info}</Typography> : null}
+          </Paper>
+
+          <Paper id="requests" elevation={0} className={styles.pageCard}>
+            <Typography className={styles.sectionTitle}>Bekleyen Firma Kayıtları</Typography>
+            {!requests.length ? <Typography className={styles.emptyText}>Bekleyen başvuru yok.</Typography> : null}
+            <Box className={styles.listGrid}>
+              {requests.map((request) => (
+                <Paper key={request.id} elevation={0} className={styles.requestCard}>
+                  <Typography className={styles.requestTitle}>{request.companyName}</Typography>
+                  <Typography className={styles.requestMetaSpaced}>Yetkili: {request.contactName}</Typography>
+                  <Typography className={styles.requestMeta}>E-posta: {request.email}</Typography>
+                  <Button onClick={() => void onApprove(request.id)} variant="contained" disableElevation className={styles.approveButton}>
+                    Onayla
+                  </Button>
+                </Paper>
+              ))}
+            </Box>
+          </Paper>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
   );
 }

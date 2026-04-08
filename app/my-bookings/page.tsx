@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import UserNavbar from "../../components/user-navbar";
+import { Box, Button, Container, Paper, Tab, Tabs, Typography } from "@mui/material";
+import UserNavbar from "@/components/user-navbar";
 import { apiGet, apiRequest } from "../../lib/api";
 import { getStoredUser } from "../../lib/session";
+import { paperHoverSx } from "../../lib/ui";
 
 type Booking = {
   bookingCode: string;
@@ -23,10 +25,10 @@ type Booking = {
 
 type ActiveTab = "bookings" | "payments" | "profile";
 
-function statusClasses(status: Booking["status"]) {
-  if (status === "Confirmed") return "bg-emerald-100 text-emerald-700";
-  if (status === "Completed") return "bg-sky-100 text-sky-700";
-  return "bg-rose-100 text-rose-700";
+function statusStyles(status: Booking["status"]) {
+  if (status === "Confirmed") return { bgcolor: "#e7f7ee", color: "#1f7a3d" };
+  if (status === "Completed") return { bgcolor: "#e6f2ff", color: "#1f5fbf" };
+  return { bgcolor: "#fdecef", color: "#c84558" };
 }
 
 export default function MyBookingsPage() {
@@ -88,93 +90,101 @@ export default function MyBookingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa] text-[#12203a]">
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#12203a" }}>
       <UserNavbar active="bookings" />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
-        <section className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-[#e5eaf6] text-sm font-semibold">
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Box sx={{ display: "grid", height: 48, width: 48, placeItems: "center", borderRadius: "50%", bgcolor: "#e5eaf6", fontSize: "0.82rem", fontWeight: 700 }}>
               {name.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold">Hoş geldiniz, {name}!</h1>
-              <p className="text-[#5b6b87]">Rezervasyonlarınızı ve profilinizi yönetin</p>
-            </div>
-          </div>
-          <Link href="/" className="rounded-md border border-[#d8dfed] bg-white px-4 py-2 text-sm">
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: "1.8rem", fontWeight: 700, letterSpacing: "-0.03em" }}>Hoş geldiniz, {name}!</Typography>
+              <Typography sx={{ fontSize: "0.9rem", color: "#5b6b87" }}>Rezervasyonlarınızı ve profilinizi yönetin</Typography>
+            </Box>
+          </Box>
+          <Button component={Link} href="/" variant="outlined" sx={{ textTransform: "none", borderColor: "#d8dfed", color: "#24324f", boxShadow: "none" }}>
             Ana Sayfaya Dön
-          </Link>
-        </section>
+          </Button>
+        </Box>
 
-        <section className="mt-5 inline-flex rounded-xl bg-[#e8ebf2] p-1 text-sm">
-          <button onClick={() => setTab("bookings")} className={`rounded-lg px-8 py-2 ${tab === "bookings" ? "bg-white font-medium" : "text-[#5a647d]"}`}>Rezervasyonlarım</button>
-          <button onClick={() => setTab("payments")} className={`rounded-lg px-8 py-2 ${tab === "payments" ? "bg-white font-medium" : "text-[#5a647d]"}`}>Ödemeler</button>
-          <button onClick={() => setTab("profile")} className={`rounded-lg px-8 py-2 ${tab === "profile" ? "bg-white font-medium" : "text-[#5a647d]"}`}>Profil</button>
-        </section>
+        <Paper elevation={0} sx={{ mt: 2.5, p: 0.75, bgcolor: "#e8ebf2", border: "1px solid #dde4f1", boxShadow: "none", display: "inline-flex" }}>
+          <Tabs
+            value={tab}
+            onChange={(_, value) => setTab(value as ActiveTab)}
+            slotProps={{ indicator: { style: { display: "none" } } }}
+            sx={{ minHeight: 0, "& .MuiTab-root": { minHeight: 0, py: 1, px: 3, textTransform: "none", fontSize: "0.85rem", borderRadius: 2 } }}
+          >
+            <Tab value="bookings" label="Rezervasyonlarım" sx={{ bgcolor: tab === "bookings" ? "#fff" : "transparent", fontWeight: tab === "bookings" ? 600 : 400, color: "#5a647d" }} />
+            <Tab value="payments" label="Ödemeler" sx={{ bgcolor: tab === "payments" ? "#fff" : "transparent", fontWeight: tab === "payments" ? 600 : 400, color: "#5a647d" }} />
+            <Tab value="profile" label="Profil" sx={{ bgcolor: tab === "profile" ? "#fff" : "transparent", fontWeight: tab === "profile" ? 600 : 400, color: "#5a647d" }} />
+          </Tabs>
+        </Paper>
 
-        {message ? <p className="mt-4 rounded-md bg-[#ecf2ff] px-3 py-2 text-sm text-[#285fdf]">{message}</p> : null}
+        {message ? <Typography sx={{ mt: 2, p: 1.5, borderRadius: 1.5, bgcolor: "#ecf2ff", color: "#285fdf", fontSize: "0.85rem" }}>{message}</Typography> : null}
 
         {tab === "profile" ? (
-          <section className="mt-5 rounded-xl border border-[#dde4f1] bg-white p-4">
-            <p className="text-sm text-[#5f6d88]">Ad Soyad</p>
-            <p className="text-lg font-medium">{name}</p>
-            <p className="mt-3 text-sm text-[#5f6d88]">E-posta</p>
-            <p className="text-lg font-medium">{email}</p>
-          </section>
+          <Paper elevation={0} sx={{ mt: 2.5, p: 2.5, border: "1px solid #dde4f1", boxShadow: "none" }}>
+            <Typography sx={{ fontSize: "0.78rem", color: "#5f6d88" }}>Ad Soyad</Typography>
+            <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>{name}</Typography>
+            <Typography sx={{ mt: 2, fontSize: "0.78rem", color: "#5f6d88" }}>E-posta</Typography>
+            <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>{email}</Typography>
+          </Paper>
         ) : null}
 
         {tab === "payments" ? (
-          <section className="mt-5 rounded-xl border border-[#dde4f1] bg-white p-4 text-sm text-[#5f6d88]">
-            Tüm ödemeler rezervasyon kayıtlarından otomatik oluşur. İşlem geçmişi için rezervasyon listenizi inceleyin.
-          </section>
+          <Paper elevation={0} sx={{ mt: 2.5, p: 2.5, border: "1px solid #dde4f1", boxShadow: "none" }}>
+            <Typography sx={{ fontSize: "0.9rem", color: "#5f6d88" }}>
+              Tüm ödemeler rezervasyon kayıtlarından otomatik oluşur. İşlem geçmişi için rezervasyon listenizi inceleyin.
+            </Typography>
+          </Paper>
         ) : null}
 
         {tab === "bookings" ? (
-          <section className="mt-5 space-y-3">
-            {loading ? <p className="rounded-xl border border-[#dde4f1] bg-white p-4">Rezervasyonlar yükleniyor...</p> : null}
+          <Box sx={{ mt: 2.5, display: "grid", gap: 1.5 }}>
+            {loading ? <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dde4f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>Rezervasyonlar yükleniyor...</Paper> : null}
             {!loading && !bookings.length ? (
-              <p className="rounded-xl border border-[#dde4f1] bg-white p-4">Bu hesapta rezervasyon bulunamadı.</p>
+              <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dde4f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>Bu hesapta rezervasyon bulunamadı.</Paper>
             ) : null}
 
-            {bookings.map((booking) => (
-              <article key={booking.bookingCode} className="rounded-xl border border-[#dde4f1] bg-white p-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <p className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClasses(booking.status)}`}>
-                      {booking.status}
-                    </p>
-                    <p className="text-xs text-[#66758f]">#{booking.bookingCode}</p>
-                    <p className="text-2xl font-semibold">{booking.company}</p>
-                    <p className="text-sm text-[#5f6d88]">{booking.route}</p>
-                    <p className="text-sm text-[#5f6d88]">{booking.travelDate}</p>
-                    <p className="text-sm text-[#5f6d88]">{booking.departureTime} - {booking.arrivalTime}</p>
-                  </div>
+            {bookings.map((booking) => {
+              const badge = statusStyles(booking.status);
+              return (
+                <Paper key={booking.bookingCode} elevation={0} sx={{ p: 2.5, border: "1px solid #dde4f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                    <Box sx={{ display: "grid", gap: 0.75 }}>
+                      <Box sx={{ alignSelf: "start", px: 1.25, py: 0.45, borderRadius: 999, fontSize: "0.72rem", fontWeight: 700, bgcolor: badge.bgcolor, color: badge.color }}>
+                        {booking.status}
+                      </Box>
+                      <Typography sx={{ fontSize: "0.78rem", color: "#66758f" }}>#{booking.bookingCode}</Typography>
+                      <Typography sx={{ fontSize: "1.35rem", fontWeight: 700 }}>{booking.company}</Typography>
+                      <Typography sx={{ fontSize: "0.88rem", color: "#5f6d88" }}>{booking.route}</Typography>
+                      <Typography sx={{ fontSize: "0.88rem", color: "#5f6d88" }}>{booking.travelDate}</Typography>
+                      <Typography sx={{ fontSize: "0.88rem", color: "#5f6d88" }}>{booking.departureTime} - {booking.arrivalTime}</Typography>
+                    </Box>
 
-                  <div className="space-y-1 text-sm text-[#5f6d88]">
-                    <p>Koltuk: {booking.seatNumber}</p>
-                    <p>Yolcu: {booking.passengers}</p>
-                    <p className="text-2xl font-semibold text-[#245fe6]">Rs {booking.totalPrice}</p>
-                  </div>
+                    <Box sx={{ display: "grid", gap: 0.75, textAlign: { xs: "left", sm: "right" } }}>
+                      <Typography sx={{ fontSize: "0.88rem", color: "#5f6d88" }}>Koltuk: {booking.seatNumber}</Typography>
+                      <Typography sx={{ fontSize: "0.88rem", color: "#5f6d88" }}>Yolcu: {booking.passengers}</Typography>
+                      <Typography sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#245fe6" }}>₺ {booking.totalPrice}</Typography>
+                    </Box>
 
-                  <div className="space-y-2">
-                    <button onClick={() => void onDownload(booking.bookingCode)} className="w-full rounded-md bg-[#101a33] px-4 py-2 text-sm font-medium text-white">
-                      İndir
-                    </button>
-                    <button
-                      onClick={() => void onCancel(booking.bookingCode)}
-                      disabled={booking.status === "Canceled"}
-                      className="w-full rounded-md border border-[#f0c5cc] px-4 py-2 text-sm text-[#d34255] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      İptal Et
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
+                    <Box sx={{ display: "grid", gap: 1, minWidth: 140 }}>
+                      <Button onClick={() => void onDownload(booking.bookingCode)} variant="contained" disableElevation sx={{ textTransform: "none", bgcolor: "#101a33", boxShadow: "none" }}>
+                        İndir
+                      </Button>
+                      <Button onClick={() => void onCancel(booking.bookingCode)} disabled={booking.status === "Canceled"} variant="outlined" sx={{ textTransform: "none", borderColor: "#f0c5cc", color: "#d34255", boxShadow: "none" }}>
+                        İptal Et
+                      </Button>
+                    </Box>
+                  </Box>
+                </Paper>
+              );
+            })}
+          </Box>
         ) : null}
-      </main>
-    </div>
+      </Container>
+    </Box>
   );
 }
