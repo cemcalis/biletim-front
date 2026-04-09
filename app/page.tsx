@@ -8,15 +8,12 @@ import {
   Container,
   FormControl,
   FormControlLabel,
-  FormLabel,
-  Link,
   Paper,
   Radio,
   RadioGroup,
   TextField,
   Typography,
 } from "@mui/material";
-import { CorporateBanner } from "@/components/corporate-banner";
 import { CorporateFooter } from "@/components/corporate-footer";
 import UserNavbar from "@/components/user-navbar";
 import { apiGet } from "../lib/api";
@@ -37,13 +34,13 @@ function formatDuration(minutes: number) {
 
 export default function HomePage() {
   const router = useRouter();
-  const [tripType, setTripType] = useState("Tekyon");
-  const [from, setFrom] = useState("İstanbul");
-  const [to, setTo] = useState("Ankara");
+  const [tripType, setTripType] = useState("");
+  const [from, setFrom] = useState("");   
+  
+  const [to, setTo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [routeCards, setRouteCards] = useState<RouteSummary[]>([]);
   const [passengerCount, setPassengerCount] = useState(1);
-  const [luggageCount, setLuggageCount] = useState(0);
 
   useEffect(() => {
     apiGet<RouteSummary[]>("/routes")
@@ -58,118 +55,127 @@ export default function HomePage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#121f36" }}>
-      <UserNavbar active="home" />
-      <CorporateBanner
-        eyebrow="lorem ipsum dolor"
-        title="Otobüs bileti arama, rezervasyon ve yönetimi tek çatı altında"
-        subtitle="Kalkış, varış ve tarih bazlı arama yapın; işletmeler için de düzenli, güvenilir bir panel deneyimi kullanın."
-      />
+    <Box sx={{ minHeight: "100vh", bgcolor: "#eef2f8", color: "#121f36" }}>
+      <Box
+        sx={{
+          position: "relative",
+          overflow: "hidden",
+          background: "#1f3971",
+          borderBottomLeftRadius: { xs: 20, md: 30 },
+          borderBottomRightRadius: { xs: 20, md: 30 },
+          pb: { xs: 4, md: 6 },
+        }}
+      >
+        <UserNavbar active="home" variant="hero" />
 
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 3 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Paper
-            variant="outlined"
-            sx={{
-              p: { xs: 2, sm: 3 },
-              borderColor: "#d9e0ee",
-              boxShadow: "none",
-            }}
-          >
-            <FormControl sx={{ width: "100%", display: "flex", alignItems: "flex-start" }}>
-              <FormLabel id="trip-type-label" sx={{ fontSize: "0.82rem", color: "#5c6883" }}>
-                Seyahat tipi
-              </FormLabel>
-              <RadioGroup
-                row
-                aria-labelledby="trip-type-label"
-                name="trip-type"
-                value={tripType}
-                onChange={(event) => setTripType(event.target.value)}
-              >
-                <FormControlLabel value="Tekyon" control={<Radio />} label="Tek Yön" />
-                <FormControlLabel value="Gidisdonus" control={<Radio />} label="Gidiş Dönüş" />
-              </RadioGroup>
-            </FormControl>
-            <Typography
-              variant="h6"
-              sx={{ fontSize: "1rem", fontWeight: 600, textAlign: "left" }}
-            >
-              Uygun seferi bulun
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 10, md: 13 } }}>
+          <Box sx={{ textAlign: "center", color: "#fff" }}>
+            <Typography sx={{ fontSize: { xs: "1.95rem", md: "2.7rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>
+              Kıbrıs&apos;ın Seyahat Uygulaması
             </Typography>
+            <Typography sx={{ mt: 1.1, fontSize: "0.95rem", color: "#dbe5f7" }}>
+              Otobus rezervasyon islemlerini hizli sekilde yonetin
+            </Typography>
+
             <Box
-              component="form"
-              onSubmit={onSearch}
               sx={{
-                mt: 2,
-                display: "grid",
-                gap: 1.5,
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr auto" },
+                mt: 2.6,
+                display: "inline-flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: 1,
+                p: 0.75,
+                borderRadius: 999,
+                bgcolor: "#2b4a89",
               }}
             >
-              <TextField
-                size="small"
-                label="Nereden"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                placeholder="Kalkış şehri"
-                fullWidth
-              />
-              <TextField
-                size="small"
-                label="Nereye"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                placeholder="Varış şehri"
-                fullWidth
-              />
-              <TextField
-                size="small"
-                label="Yolcu Sayısı"
-                value={passengerCount}
-                onChange={(e) => setPassengerCount(Number(e.target.value))}
-                type="number"
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
-                 <TextField
-                size="small"
-                label="Bagaj"
-                value={luggageCount}
-                onChange={(e) => setLuggageCount(Number(e.target.value))}
-                type="number"
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
-              <TextField
-                size="small"
-                label="Tarih"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                type="date"
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                disableElevation
+              {[
+             
+                { label: "Otobüs", active: true },
+               
+              ].map((item) => (
+                <Box
+                  key={item.label}
+                  sx={{
+                    px: 1.35,
+                    py: 0.7,
+                    borderRadius: 999,
+                    fontSize: "0.8rem",
+                    fontWeight: 700,
+                    color: item.active ? "#1f3971" : "#eef6ff",
+                    bgcolor: item.active ? "#fff" : "transparent",
+                  }}
+                >
+                  {item.label}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
+          <Box sx={{ mt: { xs: 2.5, md: 3 } }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: { xs: 2, sm: 2.25 },
+                borderColor: "#d9e0ee",
+                borderRadius: 2,
+                boxShadow: "0 18px 40px rgba(9, 29, 66, 0.2)",
+                bgcolor: "#ffffff",
+              }}
+            >
+              <FormControl sx={{ width: "100%", display: "flex", alignItems: "flex-start" }}>
+                <RadioGroup
+                  row
+                  name="trip-type"
+                  value={tripType}
+                  onChange={(event) => setTripType(event.target.value)}
+                  sx={{
+                    "& .MuiFormControlLabel-label": { fontSize: "0.82rem" },
+                    "& .MuiRadio-root": { p: 0.4 },
+                  }}
+                >
+                  <FormControlLabel value="tek-yon" control={<Radio size="small" />} label="Tek yon" />
+                  <FormControlLabel value="gidis-donus" control={<Radio size="small" />} label="Gidis-donus" />
+                </RadioGroup>
+              </FormControl>
+
+              <Box
+                component="form"
+                onSubmit={onSearch}
                 sx={{
-                  minHeight: 40,
-                  px: 3,
-                  bgcolor: "#2a64e8",
-                  textTransform: "none",
-                  fontSize: "0.875rem",
-                  boxShadow: "none",
-                  alignSelf: "end",
+                  mt: 1,
+                  display: "grid",
+                  gap: 1,
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr auto" },
                 }}
               >
-                Ara
-              </Button>
-            </Box>
-          </Paper>
-        </Box>
-      </Container>
+                <TextField size="small" label="Nereden" value={from} onChange={(e) => setFrom(e.target.value)} fullWidth />
+                <TextField size="small" label="Nereye" value={to} onChange={(e) => setTo(e.target.value)} fullWidth />
+                <TextField size="small" label="Gidis tarihi" value={date} onChange={(e) => setDate(e.target.value)} type="date" slotProps={{ inputLabel: { shrink: true } }} fullWidth />
+                <TextField size="small" label="Yolcu" value={passengerCount} onChange={(e) => setPassengerCount(Number(e.target.value))} type="number" fullWidth />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disableElevation
+                  sx={{
+                    minHeight: 40,
+                    px: 2.5,
+                    bgcolor: "#1f3971",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.88rem",
+                    boxShadow: "none",
+                    alignSelf: "stretch",
+                    "&:hover": { bgcolor: "#264a90" },
+                  }}
+                >
+                  Ucuz bilet bul
+                </Button>
+              </Box>
+            </Paper>
+          </Box>
+        </Container>
+      </Box>
 
       <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 4 }}>
         <Box
@@ -203,7 +209,7 @@ export default function HomePage() {
               }}
             >
               <Typography
-                sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#1f3f7a" }}
+                sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#1f3971" }}
               >
                 {value}
               </Typography>
@@ -408,16 +414,43 @@ export default function HomePage() {
                 ...paperHoverSx,
               }}
             >
-              <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#" }}>{item.title}</Typography>
+              <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#1f3971" }}>{item.title}</Typography>
               <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#5c6883" }}>{item.description}</Typography>
             </Paper>
           ))}
         </Box>
         <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
-          <Button href="/register" variant="contained" sx={{ textTransform: "none", bgcolor: "#2a64e8", boxShadow: "none" }}>
+          <Button href="/register" variant="contained" sx={{ textTransform: "none", bgcolor: "#1f3971", boxShadow: "none", "&:hover": { bgcolor: "#264a90" } }}>
             Üye Ol
           </Button>
         </Box>
+      </Container>
+
+      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pb: 6 }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2, md: 3 },
+            border: "1px solid #d9e0ee",
+            borderRadius: 2,
+            bgcolor: "#f7f9fd",
+            boxShadow: "none",
+            textAlign: "center",
+          }}
+        >
+          <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: "#1f3971" }}>Kampanyalar</Typography>
+          <Typography sx={{ mt: 1, fontSize: "0.86rem", color: "#5c6883" }}>
+            Donemsel indirimler, ogrenci avantajlari ve erken rezervasyon firsatlari burada.
+          </Typography>
+          <Button
+            href="/campaigns"
+            variant="contained"
+            disableElevation
+            sx={{ mt: 2, textTransform: "none", bgcolor: "#1f3971", "&:hover": { bgcolor: "#264a90" } }}
+          >
+            Kampanyalari Gor
+          </Button>
+        </Paper>
       </Container>
 
       <CorporateFooter />

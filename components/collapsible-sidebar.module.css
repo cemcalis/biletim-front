@@ -4,19 +4,21 @@
 }
 
 .mobileToggleButton {
-  background-color: #f6f8fc;
-  border: 1px solid #dbe3f1;
+  background-color: #f3f4f6;
+  border: none;
   border-radius: 8px;
-  color: #24324f;
+  color: #1f2937;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 .mobileToggleButton:hover {
-  background-color: #eaf0ff;
+  background-color: #e5e7eb;
 }
 
 .drawerPaper {
   width: 320px;
-  background-color: #fff;
+  background-color: #f5f6f8;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.18);
 }
 
 .drawerHeader {
@@ -24,25 +26,24 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #dbe3f1;
 }
 
 .title {
   font-size: 1rem;
   font-weight: 700;
-  color: #13223f;
+  color: #111827;
 }
 
 .subtitleMobile {
   margin-top: 2px;
   font-size: 0.75rem;
-  color: #5d6c87;
+  color: #6b7280;
 }
 
 .subtitleDesktop {
   margin-top: 6px;
   font-size: 0.82rem;
-  color: #5d6c87;
+  color: #6b7280;
 }
 
 .drawerContent {
@@ -56,37 +57,78 @@
   gap: 8px;
 }
 
+.menuListSecondary {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.menuGroupLabel {
+  margin: 16px 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9aa3b2;
+}
+
 .menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border-radius: 8px;
-  border: 1px solid #e5eaf2;
-  background-color: #f6f8fc;
+  background-color: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.menuItemIconWrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+}
+
+.menuItemIcon {
+  font-size: 1.03rem !important;
+  color: #111827;
 }
 
 .menuItem:hover {
-  background-color: #edf2ff;
+  background-color: #f3f4f6;
 }
 
 .menuItem:global(.Mui-selected) {
-  background-color: #eaf0ff;
-  border-color: #c9d8ff;
+  background-color: #e5e7eb;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.menuItem:global(.Mui-selected) .menuItemIconWrap {
+  background: #ffffff;
+}
+
+.menuItem:global(.Mui-selected) .menuItemIcon {
+  color: #0f172a;
 }
 
 .menuItem:global(.Mui-selected):hover {
-  background-color: #dfe9ff;
+  background-color: #dfe3e8;
 }
 
 .menuItemText :global(.MuiListItemText-primary) {
   font-size: 0.86rem;
   font-weight: 600;
-  color: #24324f;
+  color: #111827;
 }
 
 .menuItem:global(.Mui-selected) .menuItemText :global(.MuiListItemText-primary) {
-  color: #2a64e8;
+  color: #0f172a;
 }
 
 .drawerDivider {
-  border-color: #dbe3f1;
+  border-color: transparent;
 }
 
 .actions {
@@ -97,36 +139,89 @@
 
 .secondaryButton {
   text-transform: none;
-  border-color: #d8deec;
-  color: #24324f;
+  border-color: transparent;
+  color: #1f2937;
+  background: #ffffff;
 }
 
 .logoutButton {
   text-transform: none;
-  background-color: #101d35;
+  background-color: #111827;
   box-shadow: none;
 }
 
 .desktopSidebar {
   padding: 20px;
-  border: 1px solid #dbe3f1;
+  border: none;
   box-shadow: none;
   position: sticky;
   top: 16px;
-  background-color: #fff;
+  background-color: #f5f6f8;
   display: none;
+  width: 100%;
+  transition: width 180ms ease;
+  border-radius: 16px;
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.12);
+}
+
+.desktopSidebarCollapsed {
+  width: 88px;
+}
+
+.desktopHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.desktopCollapseButton {
+  border: none;
+  border-radius: 8px;
+  color: #111827;
+  background: #e9edf3;
+}
+
+.desktopCollapseButton:hover {
+  background-color: #dfe5ec;
 }
 
 .desktopMenuList {
-  margin-top: 16px;
+  margin-top: 6px;
   display: grid;
   gap: 8px;
+}
+
+.menuItemCollapsed {
+  justify-content: center;
+  min-height: 42px;
+  gap: 0;
+}
+
+.menuItemTextCollapsed {
+  display: none;
 }
 
 .desktopActions {
   margin-top: 20px;
   display: grid;
   gap: 8px;
+}
+
+.desktopActionsCollapsed {
+  display: flex;
+  justify-content: center;
+}
+
+.compactLogoutButton {
+  border: none;
+  border-radius: 8px;
+  color: #111827;
+  background: #e9edf3;
+}
+
+.compactLogoutButton:hover {
+  background-color: #dfe5ec;
 }
 
 @media (min-width: 1200px) {

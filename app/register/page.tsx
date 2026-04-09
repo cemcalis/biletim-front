@@ -21,6 +21,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,6 +36,11 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       setError("Şifre en az 6 karakterden oluşmalıdır.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Şifreler eşleşmiyor.");
       return;
     }
 
@@ -94,6 +100,15 @@ export default function RegisterPage() {
               onChange={(event) => setPassword(event.target.value)}
               label="Şifre"
               placeholder="En az 6 karakter"
+              type="password"
+              disabled={loading}
+            />
+            <TextField
+              size="small"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              label="Şifre (Tekrar)"
+              placeholder="Şifrenizi tekrar girin"
               type="password"
               disabled={loading}
             />

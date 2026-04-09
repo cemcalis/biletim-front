@@ -17,7 +17,6 @@ export function CorporateFooter() {
             <Box sx={{ mt: 1, display: "grid", gap: 0.75 }}>
               <Typography component={Link} href="/" sx={{ color: "#2a64e8", textDecoration: "none", fontSize: "0.85rem" }}>Ana sayfa</Typography>
               <Typography component={Link} href="/search-buses" sx={{ color: "#2a64e8", textDecoration: "none", fontSize: "0.85rem" }}>Sefer ara</Typography>
-              <Typography component={Link} href="/company" sx={{ color: "#2a64e8", textDecoration: "none", fontSize: "0.85rem" }}>Firma paneli</Typography>
             </Box>
           </Box>
           <Box>

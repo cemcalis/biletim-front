@@ -23,7 +23,7 @@ type Booking = {
   arrivalTime: string;
 };
 
-type ActiveTab = "bookings" | "payments" | "profile";
+type ActiveTab = "bookings" | "payments" ;
 
 function statusStyles(status: Booking["status"]) {
   if (status === "Confirmed") return { bgcolor: "#e7f7ee", color: "#1f7a3d" };
@@ -118,20 +118,11 @@ export default function MyBookingsPage() {
           >
             <Tab value="bookings" label="Rezervasyonlarım" sx={{ bgcolor: tab === "bookings" ? "#fff" : "transparent", fontWeight: tab === "bookings" ? 600 : 400, color: "#5a647d" }} />
             <Tab value="payments" label="Ödemeler" sx={{ bgcolor: tab === "payments" ? "#fff" : "transparent", fontWeight: tab === "payments" ? 600 : 400, color: "#5a647d" }} />
-            <Tab value="profile" label="Profil" sx={{ bgcolor: tab === "profile" ? "#fff" : "transparent", fontWeight: tab === "profile" ? 600 : 400, color: "#5a647d" }} />
-          </Tabs>
+           </Tabs>
         </Paper>
 
         {message ? <Typography sx={{ mt: 2, p: 1.5, borderRadius: 1.5, bgcolor: "#ecf2ff", color: "#285fdf", fontSize: "0.85rem" }}>{message}</Typography> : null}
 
-        {tab === "profile" ? (
-          <Paper elevation={0} sx={{ mt: 2.5, p: 2.5, border: "1px solid #dde4f1", boxShadow: "none" }}>
-            <Typography sx={{ fontSize: "0.78rem", color: "#5f6d88" }}>Ad Soyad</Typography>
-            <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>{name}</Typography>
-            <Typography sx={{ mt: 2, fontSize: "0.78rem", color: "#5f6d88" }}>E-posta</Typography>
-            <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>{email}</Typography>
-          </Paper>
-        ) : null}
 
         {tab === "payments" ? (
           <Paper elevation={0} sx={{ mt: 2.5, p: 2.5, border: "1px solid #dde4f1", boxShadow: "none" }}>
