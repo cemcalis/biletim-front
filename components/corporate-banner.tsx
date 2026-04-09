@@ -1,4 +1,4 @@
-import { Box, Container, Paper, Typography } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
 
 type CorporateBannerProps = {
   title: string;
@@ -9,52 +9,49 @@ type CorporateBannerProps = {
 export function CorporateBanner({
   title,
   subtitle,
-  eyebrow = "Otübs Ulaşım Platformu",
+  eyebrow = "Biletim A.Ş.",
 }: CorporateBannerProps) {
   return (
-    <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 4 } }}>
-      <Paper
-        elevation={0}
-        sx={{
-          border: "1px solid #dbe3f1",
-          bgcolor: "#86a8ec",
-          color: "#fff",
-          boxShadow: "none",
-        }}
-      >
-        <Box sx={{ p: { xs: 3, sm: 4 } }}>
+    <Box sx={{ bgcolor: "#002D62", color: "#ffffff", py: { xs: 4, md: 6 } }}>
+      <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 } }}>
+        {eyebrow && (
           <Typography
             sx={{
-              fontSize: "0.75rem",
-              letterSpacing: "0.16em",
+              fontSize: "0.72rem",
+              letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "rgba(255,255,255,0.72)",
+              color: "#D4AF37",
+              mb: 1.5,
+              fontWeight: 700,
             }}
           >
             {eyebrow}
           </Typography>
-          <Typography
-            sx={{
-              mt: 1,
-              fontSize: { xs: "1.6rem", sm: "2.2rem" },
-              fontWeight: 700,
-              lineHeight: 1.15,
-            }}
-          >
-            {title}
-          </Typography>
-          <Typography
-            sx={{
-              mt: 1.25,
-              maxWidth: 760,
-              fontSize: "0.95rem",
-              color: "rgba(255,255,255,0.82)",
-            }}
-          >
-            {subtitle}
-          </Typography>
-        </Box>
-      </Paper>
-    </Container>
+        )}
+        <Typography
+          component="h1"
+          sx={{
+            fontSize: { xs: "1.6rem", sm: "2rem" },
+            fontWeight: 800,
+            lineHeight: 1.2,
+            color: "#ffffff",
+            fontFamily: "var(--font-display), 'Playfair Display', serif",
+          }}
+        >
+          {title}
+        </Typography>
+        <Typography
+          sx={{
+            mt: 1.5,
+            maxWidth: 680,
+            fontSize: "0.95rem",
+            color: "#c8d8ea",
+            lineHeight: 1.7,
+          }}
+        >
+          {subtitle}
+        </Typography>
+      </Container>
+    </Box>
   );
 }

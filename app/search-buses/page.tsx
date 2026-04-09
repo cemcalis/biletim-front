@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import { Box, Button, Container, Paper, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Container,
+  Paper,
+  TextField,
+  Typography,
+} from "@mui/material";
+import DirectionsBusOutlinedIcon from "@mui/icons-material/DirectionsBusOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import EventSeatOutlinedIcon from "@mui/icons-material/EventSeatOutlined";
+import StarOutlinedIcon from "@mui/icons-material/StarOutlined";
 import { CorporateBanner } from "@/components/corporate-banner";
 import { CorporateFooter } from "@/components/corporate-footer";
 import UserNavbar from "@/components/user-navbar";
@@ -40,53 +51,37 @@ type BookingResponse = {
 };
 
 function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}s ${String(m).padStart(2, "0")}d`;
 }
 
 function getSeatLetters(layout?: "2+2" | "2+1" | "1+1") {
-  if (layout === "2+1") {
-    return ["A", "B", "C"];
-  }
-  if (layout === "1+1") {
-    return ["A", "B"];
-  }
+  if (layout === "2+1") return ["A", "B", "C"];
+  if (layout === "1+1") return ["A", "B"];
   return ["A", "B", "C", "D"];
 }
 
 function getAisleAfter(layout?: "2+2" | "2+1" | "1+1") {
-  if (layout === "1+1") {
-    return 1;
-  }
-  return 2;
+  return layout === "1+1" ? 1 : 2;
 }
 
 function splitSeatNumber(seatNumber: string) {
   const [, letter, row] = /^([A-Z]+)(\d+)$/.exec(seatNumber) ?? [];
-  return {
-    letter: letter ?? "",
-    row: Number(row ?? 0),
-  };
+  return { letter: letter ?? "", row: Number(row ?? 0) };
 }
 
 export default function SearchBusesPage() {
   return (
     <Suspense
       fallback={
-        <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#111d33" }}>
+        <Box sx={{ minHeight: "100vh", bgcolor: "#f8f9fa" }}>
           <UserNavbar active="search" />
           <CorporateBanner
-            eyebrow="Sefer arama"
-            title="Seferler hazırlanıyor"
-            subtitle="Kalkış, varış ve tarih bilgileri yükleniyor."
+            eyebrow="Sefer Arama"
+            title="Seferler yükleniyor..."
+            subtitle="Lütfen bekleyin."
           />
-          <Container maxWidth="lg" sx={{ py: 3 }}>
-            <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>
-              <Typography sx={{ fontSize: "0.88rem" }}>Sayfa hazırlanıyor...</Typography>
-            </Paper>
-          </Container>
-          <CorporateFooter />
         </Box>
       }
     >
@@ -125,11 +120,11 @@ function SearchBusesContent() {
 
   useEffect(() => {
     const user = getStoredUser();
-    const userName = user.name.trim();
-    const userEmail = user.email.trim();
-    setName(userName);
-    setEmail(userEmail);
-    setIsAuthenticated(Boolean(userName && userEmail));
+    const uName = user.name.trim();
+    const uEmail = user.email.trim();
+    setName(uName);
+    setEmail(uEmail);
+    setIsAuthenticated(Boolean(uName && uEmail));
   }, []);
 
   useEffect(() => {
@@ -141,12 +136,11 @@ function SearchBusesContent() {
         const data = await apiGet<Trip[]>(`/trips?${params.toString()}`);
         setTrips(data);
       } catch {
-        setError("Sefer listesi yüklenemedi.");
+        setError("Sefer listesi yüklenemedi. Lütfen tekrar deneyin.");
       } finally {
         setLoading(false);
       }
     }
-
     void loadTrips();
   }, [date, from, to]);
 
@@ -160,8 +154,8 @@ function SearchBusesContent() {
     setSelectedTrip(trip);
     setSelectedSeat("");
     setBookingInfo("");
-    const seatResponse = await apiGet<{ found: boolean; seats: Seat[] }>(`/trips/${trip.id}/seats`);
-    setSeats(seatResponse.found ? seatResponse.seats : []);
+    const res = await apiGet<{ found: boolean; seats: Seat[] }>(`/trips/${trip.id}/seats`);
+    setSeats(res.found ? res.seats : []);
   }
 
   async function onBookSeat() {
@@ -169,12 +163,10 @@ function SearchBusesContent() {
       setBookingInfo("Bilet satın almak için önce hesabınıza giriş yapın.");
       return;
     }
-
     if (!selectedTrip || !selectedSeat || !name.trim() || !email.trim()) {
       setBookingInfo("Yolcu bilgisi, sefer ve koltuk seçimi zorunludur.");
       return;
     }
-
     try {
       const result = await apiRequest<BookingResponse>("/bookings", "POST", {
         tripId: selectedTrip.id,
@@ -186,99 +178,188 @@ function SearchBusesContent() {
       if (result.ok) {
         setStoredUser(name, email);
         setIsAuthenticated(true);
-        setBookingInfo(`Rezervasyon oluşturuldu: ${result.bookingCode}`);
+        setBookingInfo(`Rezervasyon tamamlandı. Kod: ${result.bookingCode}`);
         await onSelectTrip(selectedTrip);
       } else {
         setBookingInfo(result.message ?? "Rezervasyon oluşturulamadı.");
       }
     } catch {
-      setBookingInfo("Rezervasyon isteği başarısız oldu.");
+      setBookingInfo("İstek başarısız oldu. Lütfen tekrar deneyin.");
     }
   }
 
-  const visibleCount = useMemo(() => trips.length, [trips]);
   const seatLetters = useMemo(() => getSeatLetters(selectedTrip?.seatLayout), [selectedTrip?.seatLayout]);
   const aisleAfter = useMemo(() => getAisleAfter(selectedTrip?.seatLayout), [selectedTrip?.seatLayout]);
 
   const seatRows = useMemo(() => {
-    if (!seats.length) {
-      return [] as Array<Array<Seat | null>>;
-    }
-
-    const maxRow = Math.max(...seats.map((seat) => splitSeatNumber(seat.seatNumber).row));
-    return Array.from({ length: maxRow }, (_, rowIndex) => {
-      const rowNo = rowIndex + 1;
-      return seatLetters.map((letter) => seats.find((seat) => seat.seatNumber === `${letter}${rowNo}`) ?? null);
+    if (!seats.length) return [] as Array<Array<Seat | null>>;
+    const maxRow = Math.max(...seats.map((s) => splitSeatNumber(s.seatNumber).row));
+    return Array.from({ length: maxRow }, (_, i) => {
+      const rowNo = i + 1;
+      return seatLetters.map((letter) => seats.find((s) => s.seatNumber === `${letter}${rowNo}`) ?? null);
     });
   }, [seatLetters, seats]);
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#111d33" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
       <UserNavbar active="search" />
       <CorporateBanner
-        eyebrow="Sefer arama"
-        title="Kalkış, varış ve tarih bazlı sefer sonuçları"
-        subtitle="Aradığınız seferleri tek ekranda görün, koltuk seçin ve güvenli rezervasyon yapın."
+        eyebrow="Sefer Arama"
+        title="Otobüs Seferleri"
+        subtitle="Kalkış, varış ve tarihe göre seferleri listeleyin, koltuk seçin ve güvenle rezervasyon yapın."
       />
 
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-        <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>
-          <Box component="form" onSubmit={onSearch} sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr auto" } }}>
-            <TextField size="small" label="Nereden" value={from} onChange={(event) => setFrom(event.target.value)} placeholder="Kalkış şehri" fullWidth />
-            <TextField size="small" label="Nereye" value={to} onChange={(event) => setTo(event.target.value)} placeholder="Varış şehri" fullWidth />
-            <TextField size="small" label="Tarih" value={date} onChange={(event) => setDate(event.target.value)} type="date" slotProps={{ inputLabel: { shrink: true } }} fullWidth />
-            <Button type="submit" variant="contained" disableElevation sx={{ minHeight: 40, px: 3, bgcolor: "#2a64e8", textTransform: "none", fontSize: "0.875rem", boxShadow: "none", alignSelf: "end" }}>
+      <Container maxWidth="lg" sx={{ py: 4, flex: 1 }}>
+        <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #e2e8f0", borderRadius: 2, mb: 3 }}>
+          <Box
+            component="form"
+            onSubmit={onSearch}
+            sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr auto" } }}
+          >
+            <TextField
+              size="small"
+              label="Nereden"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              label="Nereye"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              label="Tarih"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              sx={{
+                height: 40,
+                bgcolor: "#002D62",
+                "&:hover": { bgcolor: "#001f44" },
+                textTransform: "none",
+                fontWeight: 700,
+                alignSelf: "end",
+                px: 3,
+              }}
+            >
               Ara
             </Button>
           </Box>
         </Paper>
 
-        <Paper elevation={0} sx={{ mt: 2, p: 2, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>
-          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
-            <Typography sx={{ fontSize: "0.9rem", color: "#2c3b58" }}>
-              {from} - {to} · {date}
-            </Typography>
-            <Box sx={{ px: 1.25, py: 0.5, borderRadius: 1, bgcolor: "#eef2fb", fontSize: "0.75rem" }}>{visibleCount} sefer bulundu</Box>
-          </Box>
-        </Paper>
+        <Box sx={{ mb: 2, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+          <Typography sx={{ fontSize: "0.9rem", color: "#64748b" }}>
+            <strong style={{ color: "#0f172a" }}>{from}</strong> →{" "}
+            <strong style={{ color: "#0f172a" }}>{to}</strong> · {date}
+          </Typography>
+          {!loading && (
+            <Box sx={{ px: 1.5, py: 0.5, bgcolor: "#002D62", borderRadius: 1 }}>
+              <Typography sx={{ fontSize: "0.75rem", fontWeight: 700, color: "#ffffff" }}>
+                {trips.length} sefer bulundu
+              </Typography>
+            </Box>
+          )}
+        </Box>
 
-        <Box sx={{ mt: 2.5, display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", lg: "1fr 340px" } }}>
-          <Box sx={{ display: "grid", gap: 1.5 }}>
-            {loading ? <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>Seferler yükleniyor...</Paper> : null}
-            {error ? <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #f3c7cc", bgcolor: "#fff5f6", boxShadow: "none", color: "#c44555", cursor: "default", ...paperHoverSx }}>{error}</Paper> : null}
-            {!loading && !trips.length ? (
-              <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>Bu rota için sefer bulunamadı.</Paper>
-            ) : null}
+        <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: "1fr 340px" } }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {loading && (
+              <Paper elevation={0} sx={{ p: 3, border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>Seferler yükleniyor...</Typography>
+              </Paper>
+            )}
+            {error && (
+              <Paper elevation={0} sx={{ p: 3, border: "1px solid #fecaca", bgcolor: "#fef2f2", borderRadius: 2 }}>
+                <Typography sx={{ color: "#dc2626", fontSize: "0.9rem" }}>{error}</Typography>
+              </Paper>
+            )}
+            {!loading && trips.length === 0 && !error && (
+              <Paper elevation={0} sx={{ p: 5, border: "1px solid #e2e8f0", borderRadius: 2, textAlign: "center" }}>
+                <DirectionsBusOutlinedIcon sx={{ fontSize: 44, color: "#cbd5e1", mb: 1.5 }} />
+                <Typography sx={{ color: "#64748b", fontWeight: 500 }}>
+                  Bu güzergah ve tarih için sefer bulunamadı.
+                </Typography>
+              </Paper>
+            )}
 
             {trips.map((trip) => (
-              <Paper key={trip.id} elevation={0} sx={{ p: 2.5, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>
-                <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-                  <Box>
-                    <Typography sx={{ fontSize: "0.98rem", fontWeight: 700 }}>{trip.company}</Typography>
-                    <Typography sx={{ fontSize: "0.84rem", color: "#5f6d88" }}>{trip.busType}</Typography>
-                    <Typography sx={{ fontSize: "0.76rem", color: "#5f6d88" }}>Düzen: {trip.seatLayout}</Typography>
-                    <Typography sx={{ fontSize: "0.76rem", color: "#5f6d88" }}>{trip.rating} puan</Typography>
+              <Paper
+                key={trip.id}
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: selectedTrip?.id === trip.id ? "1px solid #002D62" : "1px solid #e2e8f0",
+                  borderRadius: 2,
+                  ...paperHoverSx,
+                }}
+              >
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "center", justifyContent: "space-between" }}>
+                  <Box sx={{ minWidth: 160 }}>
+                    <Typography sx={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a" }}>
+                      {trip.company}
+                    </Typography>
+                    <Typography sx={{ fontSize: "0.82rem", color: "#64748b", mt: 0.5 }}>{trip.busType}</Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                      <StarOutlinedIcon sx={{ fontSize: 13, color: "#D4AF37" }} />
+                      <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>{trip.rating}</Typography>
+                    </Box>
                   </Box>
 
                   <Box sx={{ textAlign: "center" }}>
-                    <Typography sx={{ fontSize: "1.3rem", fontWeight: 700 }}>{trip.departureTime}</Typography>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#5f6d88" }}>{trip.departureDate}</Typography>
-                  </Box>
-
-                  <Box sx={{ textAlign: "center", color: "#5f6d88", fontSize: "0.84rem" }}>
-                    <Typography sx={{ fontSize: "0.84rem" }}>{formatDuration(trip.durationMinutes)}</Typography>
-                    <Box sx={{ mx: "auto", mt: 0.8, height: 1, width: 56, bgcolor: "#d7ddea" }} />
-                    <Typography sx={{ mt: 0.5, fontSize: "0.76rem" }}>Varış: {trip.arrivalDate}</Typography>
+                    <Typography sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a" }}>
+                      {trip.departureTime}
+                    </Typography>
+                    <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>{trip.from}</Typography>
                   </Box>
 
                   <Box sx={{ textAlign: "center" }}>
-                    <Typography sx={{ fontSize: "1.3rem", fontWeight: 700 }}>{trip.to}</Typography>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#5f6d88" }}>{trip.seatsAvailable} koltuk boş</Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "#94a3b8" }}>
+                      <AccessTimeOutlinedIcon sx={{ fontSize: 14 }} />
+                      <Typography sx={{ fontSize: "0.82rem" }}>{formatDuration(trip.durationMinutes)}</Typography>
+                    </Box>
+                    <Box sx={{ height: 1, width: 60, bgcolor: "#e2e8f0", mx: "auto", my: 0.75 }} />
+                    <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>{trip.to}</Typography>
                   </Box>
 
-                  <Box sx={{ ml: "auto", textAlign: "right" }}>
-                    <Typography sx={{ fontSize: "1.7rem", fontWeight: 700, color: "#2b65e7" }}>₺ {trip.price}</Typography>
-                    <Button onClick={() => void onSelectTrip(trip)} variant="contained" disableElevation sx={{ mt: 1.2, textTransform: "none", bgcolor: "#2a64e8", boxShadow: "none" }}>
+                  <Box sx={{ textAlign: "center" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <EventSeatOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                      <Typography sx={{ fontSize: "0.82rem", color: "#64748b" }}>
+                        {trip.seatsAvailable} boş koltuk
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", mt: 0.25 }}>
+                      {trip.seatLayout} düzen
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ textAlign: "right" }}>
+                    <Typography sx={{ fontSize: "1.6rem", fontWeight: 800, color: "#002D62" }}>
+                      ₺{trip.price}
+                    </Typography>
+                    <Button
+                      onClick={() => void onSelectTrip(trip)}
+                      variant="contained"
+                      size="small"
+                      sx={{
+                        mt: 1,
+                        bgcolor: "#002D62",
+                        "&:hover": { bgcolor: "#001f44" },
+                        textTransform: "none",
+                        fontWeight: 600,
+                        px: 2.5,
+                      }}
+                    >
                       Koltuk Seç
                     </Button>
                   </Box>
@@ -287,76 +368,166 @@ function SearchBusesContent() {
             ))}
           </Box>
 
-          <Paper elevation={0} sx={{ p: 2.5, border: "1px solid #dfe5f1", boxShadow: "none", cursor: "default", ...paperHoverSx }}>
-            <Typography sx={{ fontSize: "1rem", fontWeight: 700 }}>Koltuk Seçimi</Typography>
-            <Typography sx={{ mt: 0.5, fontSize: "0.84rem", color: "#5f6d88" }}>
-              {selectedTrip ? `${selectedTrip.company} (${selectedTrip.id})` : "Lütfen bir sefer seçin"}
+          <Paper
+            elevation={0}
+            sx={{ p: 3, border: "1px solid #e2e8f0", borderRadius: 2, alignSelf: "start", position: "sticky", top: 16 }}
+          >
+            <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", mb: 0.5 }}>
+              Koltuk Seçimi
+            </Typography>
+            <Typography sx={{ fontSize: "0.82rem", color: "#64748b", mb: 2 }}>
+              {selectedTrip ? `${selectedTrip.company} · ${selectedTrip.from} → ${selectedTrip.to}` : "Lütfen önce bir sefer seçin"}
             </Typography>
 
-            <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1.5, fontSize: "0.74rem", color: "#5f6d88" }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: 1, bgcolor: "#f3f6fc", border: "1px solid #d8deec" }} /> Müsait
-              <Box sx={{ width: 10, height: 10, borderRadius: 1, bgcolor: "#2a64e8" }} /> Seçili
-              <Box sx={{ width: 10, height: 10, borderRadius: 1, bgcolor: "#eceff6" }} /> Dolu
-            </Box>
+            {selectedTrip && (
+              <>
+                <Box sx={{ display: "flex", gap: 2, mb: 2, fontSize: "0.75rem", color: "#64748b" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: "2px", bgcolor: "#f1f5f9", border: "1px solid #cbd5e1" }} />
+                    Boş
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: "2px", bgcolor: "#002D62" }} />
+                    Seçili
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: "2px", bgcolor: "#e2e8f0" }} />
+                    Dolu
+                  </Box>
+                </Box>
 
-            <Paper elevation={0} sx={{ mt: 1.5, p: 1.25, border: "1px solid #e1e8f5", bgcolor: "#fbfcff", boxShadow: "none" }}>
-              <Box sx={{ ml: "auto", mb: 1.25, width: 74, textAlign: "center", fontSize: "0.72rem", fontWeight: 700, color: "#31476a", border: "1px solid #d6dff3", bgcolor: "#eaf0ff", borderRadius: 1, py: 0.4 }}>
-                Şoför
-              </Box>
-
-              <Box sx={{ display: "grid", gap: 0.8 }}>
-                {seatRows.map((row, rowIndex) => (
-                  <Box key={`row-${rowIndex + 1}`} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    {row.map((seat, index) => (
-                      <Box key={`seat-${rowIndex + 1}-${index}`} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        {seat ? (
-                          <Button
-                            disabled={seat.status === "booked"}
-                            onClick={() => setSelectedSeat(seat.seatNumber)}
-                            variant="outlined"
-                            sx={{
-                              minWidth: 0,
-                              px: 0,
-                              py: 0.75,
-                              width: 48,
-                              fontSize: "0.7rem",
-                              textTransform: "none",
-                              borderColor: seat.status === "booked" ? "#eceff6" : selectedSeat === seat.seatNumber ? "#2a64e8" : "#d8deec",
-                              bgcolor: seat.status === "booked" ? "#eceff6" : selectedSeat === seat.seatNumber ? "#2a64e8" : "#f3f6fc",
-                              color: seat.status === "booked" ? "#95a1ba" : selectedSeat === seat.seatNumber ? "#fff" : "#24324e",
-                              boxShadow: "none",
-                              "&:hover": { boxShadow: "none", bgcolor: seat.status === "booked" ? "#eceff6" : selectedSeat === seat.seatNumber ? "#2458d6" : "#eaf0fb" },
-                            }}
-                          >
-                            {seat.seatNumber}
-                          </Button>
-                        ) : (
-                          <Box sx={{ width: 48, height: 34 }} />
-                        )}
-
-                        {index + 1 === aisleAfter ? <Box sx={{ width: 12, height: 2, bgcolor: "#d6deec", borderRadius: 10, mx: 0.25 }} /> : null}
+                <Box sx={{ p: 2, bgcolor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 1.5, mb: 2 }}>
+                  <Box
+                    sx={{
+                      width: 70,
+                      mx: "auto",
+                      mb: 1.5,
+                      py: 0.5,
+                      textAlign: "center",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      color: "#002D62",
+                      bgcolor: "#e6eef5",
+                      border: "1px solid #c8d8ea",
+                      borderRadius: 1,
+                    }}
+                  >
+                    Şoför
+                  </Box>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                    {seatRows.map((row, rowIndex) => (
+                      <Box key={`row-${rowIndex + 1}`} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        {row.map((seat, colIndex) => (
+                          <Box key={`seat-${rowIndex}-${colIndex}`} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            {seat ? (
+                              <Button
+                                disabled={seat.status === "booked"}
+                                onClick={() => setSelectedSeat(seat.seatNumber)}
+                                variant="outlined"
+                                sx={{
+                                  minWidth: 0,
+                                  width: 44,
+                                  height: 36,
+                                  p: 0,
+                                  fontSize: "0.68rem",
+                                  fontWeight: 600,
+                                  textTransform: "none",
+                                  borderRadius: 1,
+                                  borderColor:
+                                    seat.status === "booked"
+                                      ? "#e2e8f0"
+                                      : selectedSeat === seat.seatNumber
+                                      ? "#002D62"
+                                      : "#cbd5e1",
+                                  bgcolor:
+                                    seat.status === "booked"
+                                      ? "#e2e8f0"
+                                      : selectedSeat === seat.seatNumber
+                                      ? "#002D62"
+                                      : "#f1f5f9",
+                                  color:
+                                    seat.status === "booked"
+                                      ? "#94a3b8"
+                                      : selectedSeat === seat.seatNumber
+                                      ? "#ffffff"
+                                      : "#0f172a",
+                                  "&:hover": {
+                                    bgcolor:
+                                      seat.status === "booked"
+                                        ? "#e2e8f0"
+                                        : selectedSeat === seat.seatNumber
+                                        ? "#001f44"
+                                        : "#e2e8f0",
+                                  },
+                                }}
+                              >
+                                {seat.seatNumber}
+                              </Button>
+                            ) : (
+                              <Box sx={{ width: 44, height: 36 }} />
+                            )}
+                            {colIndex + 1 === aisleAfter && (
+                              <Box sx={{ width: 10, height: 2, bgcolor: "#e2e8f0", borderRadius: 10 }} />
+                            )}
+                          </Box>
+                        ))}
                       </Box>
                     ))}
                   </Box>
-                ))}
-              </Box>
-            </Paper>
+                </Box>
+              </>
+            )}
 
-            <Box sx={{ mt: 2, display: "grid", gap: 1.25 }}>
-              <TextField size="small" value={name} onChange={(event) => setName(event.target.value)} placeholder="Örn: Cem Çalış" label="Ad Soyad" disabled={!isAuthenticated} />
-              <TextField size="small" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Örn: cem@example.com" label="E-posta" disabled={!isAuthenticated} />
-              {!isAuthenticated ? (
-                <Paper elevation={0} sx={{ p: 1.5, border: "1px solid #f3d58b", bgcolor: "#fff9ea", boxShadow: "none", fontSize: "0.75rem", color: "#986d1d", cursor: "default", ...paperHoverSx }}>
-                  Rezervasyon için oturum açmanız gerekiyor.
-                  <Box component={Link} href="/login" sx={{ ml: 0.5, fontWeight: 700, color: "#2a64e8", textDecoration: "none" }}>
-                    Giriş yap
-                  </Box>
-                </Paper>
-              ) : null}
-              <Button onClick={() => void onBookSeat()} disabled={!isAuthenticated} variant="contained" disableElevation sx={{ textTransform: "none", bgcolor: "#101a33", boxShadow: "none" }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+              <TextField
+                size="small"
+                label="Ad Soyad"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={!isAuthenticated}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="E-posta"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={!isAuthenticated}
+                fullWidth
+              />
+              {!isAuthenticated && (
+                <Box sx={{ p: 1.5, bgcolor: "#fffbeb", border: "1px solid #fde68a", borderRadius: 1 }}>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#92400e" }}>
+                    Rezervasyon için{" "}
+                    <Box component={Link} href="/login" sx={{ fontWeight: 700, color: "#002D62", textDecoration: "none" }}>
+                      giriş yapın
+                    </Box>
+                    .
+                  </Typography>
+                </Box>
+              )}
+              <Button
+                onClick={() => void onBookSeat()}
+                disabled={!isAuthenticated || !selectedSeat}
+                variant="contained"
+                fullWidth
+                sx={{
+                  bgcolor: "#059669",
+                  "&:hover": { bgcolor: "#047857" },
+                  "&:disabled": { bgcolor: "#e2e8f0", color: "#94a3b8" },
+                  textTransform: "none",
+                  fontWeight: 700,
+                  height: 44,
+                }}
+              >
                 Rezervasyonu Onayla
               </Button>
-              {bookingInfo ? <Typography sx={{ fontSize: "0.82rem", color: "#2a64e8" }}>{bookingInfo}</Typography> : null}
+              {bookingInfo && (
+                <Typography sx={{ fontSize: "0.82rem", color: "#059669", fontWeight: 500, textAlign: "center" }}>
+                  {bookingInfo}
+                </Typography>
+              )}
             </Box>
           </Paper>
         </Box>

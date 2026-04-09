@@ -6,18 +6,24 @@ import {
   Box,
   Button,
   Container,
-  FormControl,
-  FormControlLabel,
   Paper,
-  Radio,
-  RadioGroup,
   TextField,
   Typography,
+  IconButton,
+  Chip,
+  InputAdornment,
 } from "@mui/material";
+import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
+
 import { CorporateFooter } from "@/components/corporate-footer";
 import UserNavbar from "@/components/user-navbar";
 import { apiGet } from "../lib/api";
-import { paperHoverSx } from "../lib/ui";
 
 type RouteSummary = {
   from: string;
@@ -26,431 +32,353 @@ type RouteSummary = {
   durationMinutes: number;
 };
 
-function formatDuration(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h ${String(m).padStart(2, "0")}m`;
-}
+const BENEFITS = [
+  {
+    icon: <LockOutlinedIcon sx={{ fontSize: 28, color: "#002D62" }} />,
+    title: "Güvenli Ödeme",
+    desc: "256-bit SSL şifreleme ile tüm işlemleriniz korunur.",
+  },
+  {
+    icon: <SupportAgentOutlinedIcon sx={{ fontSize: 28, color: "#002D62" }} />,
+    title: "7/24 Destek",
+    desc: "Seyahatinizle ilgili her konuda çağrı merkezimiz yanınızda.",
+  },
+  {
+    icon: <AssignmentReturnOutlinedIcon sx={{ fontSize: 28, color: "#002D62" }} />,
+    title: "Kolay İptal ve İade",
+    desc: "Satın aldığınız biletlerde sorunsuz iptal ve iade garantisi.",
+  },
+];
+
+const POPULAR_ROUTES = [
+  { from: "İstanbul", to: "Ankara" },
+  { from: "Ankara", to: "İstanbul" },
+  { from: "İzmir", to: "İstanbul" },
+  { from: "İstanbul", to: "İzmir" },
+  { from: "Antalya", to: "Ankara" },
+  { from: "Bursa", to: "İstanbul" },
+  { from: "Adana", to: "İstanbul" },
+  { from: "Konya", to: "Ankara" },
+  { from: "Trabzon", to: "Ankara" },
+];
 
 export default function HomePage() {
   const router = useRouter();
-  const [tripType, setTripType] = useState("");
-  const [from, setFrom] = useState("");   
-  
+  const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [routeCards, setRouteCards] = useState<RouteSummary[]>([]);
-  const [passengerCount, setPassengerCount] = useState(1);
+  const [date, setDate] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [, setRouteCards] = useState<RouteSummary[]>([]);
+
+  const getToday = () => new Date().toISOString().slice(0, 10);
+  const getTomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
 
   useEffect(() => {
+    setMounted(true);
+    setDate(getToday());
     apiGet<RouteSummary[]>("/routes")
       .then((data) => setRouteCards(data))
       .catch(() => setRouteCards([]));
   }, []);
 
-  function onSearch(event: FormEvent<HTMLFormElement>) {
+  function onSearch(event: FormEvent) {
     event.preventDefault();
     const params = new URLSearchParams({ from, to, date });
     router.push(`/search-buses?${params.toString()}`);
   }
 
+  function handleSwap() {
+    const temp = from;
+    setFrom(to);
+    setTo(temp);
+  }
+
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#eef2f8", color: "#121f36" }}>
-      <Box
-        sx={{
-          position: "relative",
-          overflow: "hidden",
-          background: "#1f3971",
-          borderBottomLeftRadius: { xs: 20, md: 30 },
-          borderBottomRightRadius: { xs: 20, md: 30 },
-          pb: { xs: 4, md: 6 },
-        }}
-      >
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
+      <Box sx={{ bgcolor: "#002D62", color: "#ffffff", pb: { xs: 10, md: 14 } }}>
         <UserNavbar active="home" variant="hero" />
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 4, md: 8 } }}>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: { xs: "1.8rem", md: "2.6rem" },
+              fontWeight: 800,
+              textAlign: "center",
+              mb: 1.5,
+              color: "#ffffff",
+              fontFamily: "var(--font-display), 'Playfair Display', serif",
+            }}
+          >
+            Türkiye&apos;nin Lider Otobüs Platformu
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: { xs: "0.95rem", md: "1.05rem" },
+              textAlign: "center",
+              color: "#c8d8ea",
+              mb: 4,
+            }}
+          >
+            Yüzlerce firmanın seferlerini tek yerden karşılaştır, en uygun biletini al.
+          </Typography>
 
-        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 10, md: 13 } }}>
-          <Box sx={{ textAlign: "center", color: "#fff" }}>
-            <Typography sx={{ fontSize: { xs: "1.95rem", md: "2.7rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>
-              Kıbrıs&apos;ın Seyahat Uygulaması
-            </Typography>
-            <Typography sx={{ mt: 1.1, fontSize: "0.95rem", color: "#dbe5f7" }}>
-              Otobus rezervasyon islemlerini hizli sekilde yonetin
-            </Typography>
-
-            <Box
-              sx={{
-                mt: 2.6,
-                display: "inline-flex",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                gap: 1,
-                p: 0.75,
-                borderRadius: 999,
-                bgcolor: "#2b4a89",
-              }}
-            >
-              {[
-             
-                { label: "Otobüs", active: true },
-               
-              ].map((item) => (
-                <Box
-                  key={item.label}
-                  sx={{
-                    px: 1.35,
-                    py: 0.7,
-                    borderRadius: 999,
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    color: item.active ? "#1f3971" : "#eef6ff",
-                    bgcolor: item.active ? "#fff" : "transparent",
-                  }}
-                >
-                  {item.label}
-                </Box>
-              ))}
+          <Paper
+            elevation={0}
+            sx={{
+              maxWidth: 980,
+              mx: "auto",
+              p: { xs: 3, md: 4 },
+              borderRadius: 2,
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <DirectionsBusIcon sx={{ color: "#002D62", fontSize: 20 }} />
+              <Typography sx={{ fontWeight: 700, color: "#002D62", fontSize: "0.95rem" }}>
+                Otobüs Bileti
+              </Typography>
             </Box>
-          </Box>
 
-          <Box sx={{ mt: { xs: 2.5, md: 3 } }}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: { xs: 2, sm: 2.25 },
-                borderColor: "#d9e0ee",
-                borderRadius: 2,
-                boxShadow: "0 18px 40px rgba(9, 29, 66, 0.2)",
-                bgcolor: "#ffffff",
-              }}
-            >
-              <FormControl sx={{ width: "100%", display: "flex", alignItems: "flex-start" }}>
-                <RadioGroup
-                  row
-                  name="trip-type"
-                  value={tripType}
-                  onChange={(event) => setTripType(event.target.value)}
-                  sx={{
-                    "& .MuiFormControlLabel-label": { fontSize: "0.82rem" },
-                    "& .MuiRadio-root": { p: 0.4 },
-                  }}
-                >
-                  <FormControlLabel value="tek-yon" control={<Radio size="small" />} label="Tek yon" />
-                  <FormControlLabel value="gidis-donus" control={<Radio size="small" />} label="Gidis-donus" />
-                </RadioGroup>
-              </FormControl>
-
+            <Box component="form" onSubmit={onSearch}>
               <Box
-                component="form"
-                onSubmit={onSearch}
                 sx={{
-                  mt: 1,
-                  display: "grid",
-                  gap: 1,
-                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr auto" },
+                  display: "flex",
+                  flexDirection: { xs: "column", md: "row" },
+                  gap: 2,
+                  alignItems: { xs: "stretch", md: "flex-start" },
                 }}
               >
-                <TextField size="small" label="Nereden" value={from} onChange={(e) => setFrom(e.target.value)} fullWidth />
-                <TextField size="small" label="Nereye" value={to} onChange={(e) => setTo(e.target.value)} fullWidth />
-                <TextField size="small" label="Gidis tarihi" value={date} onChange={(e) => setDate(e.target.value)} type="date" slotProps={{ inputLabel: { shrink: true } }} fullWidth />
-                <TextField size="small" label="Yolcu" value={passengerCount} onChange={(e) => setPassengerCount(Number(e.target.value))} type="number" fullWidth />
+                <TextField
+                  variant="outlined"
+                  label="Nereden"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  fullWidth
+                  placeholder="Kalkış şehri"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LocationOnOutlinedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+
+                <IconButton
+                  onClick={handleSwap}
+                  sx={{
+                    alignSelf: "center",
+                    bgcolor: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    color: "#002D62",
+                    "&:hover": { bgcolor: "#e2e8f0" },
+                    flexShrink: 0,
+                  }}
+                >
+                  <SwapHorizIcon fontSize="small" />
+                </IconButton>
+
+                <TextField
+                  variant="outlined"
+                  label="Nereye"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  fullWidth
+                  placeholder="Varış şehri"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LocationOnOutlinedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+
+                <Box sx={{ display: "flex", flexDirection: "column", minWidth: { md: 220 } }}>
+                  {mounted && (
+                    <>
+                      <TextField
+                        variant="outlined"
+                        label="Tarih"
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        fullWidth
+                        slotProps={{
+                          inputLabel: { shrink: true },
+                          input: {
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <CalendarMonthOutlinedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
+                              </InputAdornment>
+                            ),
+                          },
+                        }}
+                      />
+                      <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                        <Chip
+                          label="Bugün"
+                          size="small"
+                          onClick={() => setDate(getToday())}
+                          sx={{
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            fontSize: "0.75rem",
+                            bgcolor: date === getToday() ? "#002D62" : "transparent",
+                            color: date === getToday() ? "#fff" : "#64748b",
+                            border: "1px solid",
+                            borderColor: date === getToday() ? "#002D62" : "#cbd5e1",
+                          }}
+                        />
+                        <Chip
+                          label="Yarın"
+                          size="small"
+                          onClick={() => setDate(getTomorrow())}
+                          sx={{
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            fontSize: "0.75rem",
+                            bgcolor: date === getTomorrow() ? "#002D62" : "transparent",
+                            color: date === getTomorrow() ? "#fff" : "#64748b",
+                            border: "1px solid",
+                            borderColor: date === getTomorrow() ? "#002D62" : "#cbd5e1",
+                          }}
+                        />
+                      </Box>
+                    </>
+                  )}
+                </Box>
+
                 <Button
                   type="submit"
                   variant="contained"
-                  disableElevation
                   sx={{
-                    minHeight: 40,
-                    px: 2.5,
-                    bgcolor: "#1f3971",
-                    textTransform: "none",
+                    height: 56,
+                    alignSelf: "flex-start",
+                    px: 4,
+                    bgcolor: "#059669",
+                    color: "#ffffff",
+                    fontSize: "0.95rem",
                     fontWeight: 700,
-                    fontSize: "0.88rem",
-                    boxShadow: "none",
-                    alignSelf: "stretch",
-                    "&:hover": { bgcolor: "#264a90" },
+                    textTransform: "none",
+                    "&:hover": { bgcolor: "#047857" },
+                    flexShrink: 0,
+                    width: { xs: "100%", md: "auto" },
                   }}
                 >
-                  Ucuz bilet bul
+                  Sefer Bul
                 </Button>
               </Box>
+            </Box>
+          </Paper>
+        </Container>
+      </Box>
+
+      <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 }, py: 8 }}>
+        <Typography
+          component="h2"
+          sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", textAlign: "center", mb: 4 }}
+        >
+          Neden Biletim A.Ş.?
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 3,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          }}
+        >
+          {BENEFITS.map((item) => (
+            <Paper
+              key={item.title}
+              elevation={0}
+              sx={{
+                p: 4,
+                textAlign: "center",
+                borderRadius: 2,
+                border: "1px solid #e2e8f0",
+                transition: "box-shadow 0.2s",
+                "&:hover": { boxShadow: "0 4px 16px -4px rgba(0,0,0,0.08)" },
+              }}
+            >
+              <Box sx={{ mb: 2 }}>{item.icon}</Box>
+              <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", mb: 1 }}>
+                {item.title}
+              </Typography>
+              <Typography sx={{ fontSize: "0.9rem", color: "#64748b", lineHeight: 1.7 }}>
+                {item.desc}
+              </Typography>
             </Paper>
+          ))}
+        </Box>
+      </Container>
+
+      <Box sx={{ bgcolor: "#ffffff", py: 8, borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" }}>
+        <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 } }}>
+          <Typography
+            component="h2"
+            sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", mb: 4 }}
+          >
+            Popüler Seferler
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 2,
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+            }}
+          >
+            {POPULAR_ROUTES.map((route, i) => (
+              <Box
+                key={i}
+                onClick={() => {
+                  setFrom(route.from);
+                  setTo(route.to);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  p: 2,
+                  borderRadius: 2,
+                  cursor: "pointer",
+                  border: "1px solid #f1f5f9",
+                  transition: "all 0.18s",
+                  "&:hover": { borderColor: "#002D62", bgcolor: "#f8fafc" },
+                }}
+              >
+                <DirectionsBusIcon sx={{ color: "#94a3b8", fontSize: 18, flexShrink: 0 }} />
+                <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, color: "#334155" }}>
+                  {route.from} → {route.to}
+                </Typography>
+              </Box>
+            ))}
           </Box>
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 4 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              lg: "repeat(4, 1fr)",
-            },
-          }}
+      <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 }, py: 6 }}>
+        <Typography
+          component="h3"
+          sx={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", mb: 2 }}
         >
-          {[
-            ["500.000+", "Memnun yolcu"],
-            ["2000+", "Aktif hat"],
-            ["500+", "Şoför"],
-            ["1500+", "Aktif sefer"],
-          ].map(([value, label]) => (
-            <Paper
-              key={label}
-              variant="outlined"
-              sx={{
-                flex: 1,
-                minWidth: 180,
-                p: 2.25,
-                textAlign: "center",
-                boxShadow: "none",
-                cursor: "default",
-                ...paperHoverSx,
-              }}
-            >
-              <Typography
-                sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#1f3971" }}
-              >
-                {value}
-              </Typography>
-              <Typography
-                sx={{ mt: 0.5, fontSize: "0.8rem", color: "#66758a" }}
-              >
-                {label}
-              </Typography>
-            </Paper>
-          ))}
-        </Box>
-      </Container>
-
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, py: 4 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography
-            variant="h5"
-            sx={{ fontSize: "1.25rem", fontWeight: 700 }}
-          >
-            Neden Near East Ulaşım?
-          </Typography>
-          <Typography sx={{ fontSize: "0.9rem", color: "#5a6a84" }}>
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusamus in assumenda sed dolore cupiditate explicabo maxime praesentium ipsa beatae soluta quibusdam, ullam corporis aut sequi, et, tempora dolorum dolorem dignissimos?
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            mt: 3,
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "1fr 1fr",
-              lg: "repeat(4, 1fr)",
-            },
-          }}
-        >
-          {[
-            [
-              "Güvenli Ödeme",
-              "Kart, dijital cüzdan ve havale seçenekleriyle güvenli işlem",
-            ],
-            [
-              "Canlı Takip",
-              "Seferinizi anlık izleyin ve durum güncellemelerini takip edin",
-            ],
-            ["Kolay Rezervasyon", "Birkaç adımda hızlıca bilet ayırtın"],
-            [
-              "7/24 Destek",
-              "İhtiyacınız olduğunda ulaşabileceğiniz destek kanalı",
-            ],
-          ].map(([title, description]) => (
-            <Paper
-              key={title}
-              variant="outlined"
-              sx={{
-                p: 2.25,
-                textAlign: "center",
-                boxShadow: "none",
-                cursor: "default",
-                ...paperHoverSx,
-              }}
-            >
-              <Typography sx={{ fontSize: "0.95rem", fontWeight: 600 }}>
-                {title}
-              </Typography>
-              <Typography sx={{ mt: 1, fontSize: "0.82rem", color: "#5d6c87" }}>
-                {description}
-              </Typography>
-            </Paper>
-          ))}
-        </Box>
-      </Container>
-
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pb: 6 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography
-            variant="h5"
-            sx={{ fontSize: "1.25rem", fontWeight: 700 }}
-          >
-            Popüler Hatlar
-          </Typography>
-          <Typography sx={{ fontSize: "0.9rem", color: "#5a6a84" }}>
-            Sık tercih edilen rotalara göz atın
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            mt: 3,
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "1fr 1fr",
-              lg: "repeat(4, 1fr)",
-            },
-          }}
-        >
-          {routeCards.map((item) => (
-            <Paper
-              key={`${item.from}-${item.to}`}
-              variant="outlined"
-              sx={{
-                p: 2,
-                boxShadow: "none",
-                cursor: "default",
-                ...paperHoverSx,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 2,
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontSize: "0.95rem", fontWeight: 700 }}>
-                    {item.from}
-                  </Typography>
-                  <Typography sx={{ fontSize: "0.82rem", color: "#5c6883" }}>
-                    ile {item.to}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: 1,
-                    bgcolor: "#eef2fa",
-                    fontSize: "0.75rem",
-                    color: "#1d2d4d",
-                  }}
-                >
-                  ₺ {item.basePrice}
-                </Box>
-              </Box>
-              <Box
-                sx={{
-                  mt: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontSize: "0.82rem",
-                  color: "#5c6883",
-                }}
-              >
-                <span>{formatDuration(item.durationMinutes)}</span>
-                <span>4,5</span>
-              </Box>
-            </Paper>
-          ))}
-        </Box>
-      </Container>
-
-      <Container maxWidth="lg" sx={{ mt: 2, px: { xs: 2, sm: 4 }, pb: 6 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography sx={{ fontSize: "0.95rem", fontWeight: 700 }}>Daha fazla rota için takip edin</Typography>
-        </Box>
-        <Box
-          sx={{
-            mt: 2,
-            display: "grid",
-            gap: 1.5,
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
-          }}
-        >
-          {[
-            {
-              title: "Misafir Listesi",
-              description:
-                "Konaklayacak kişileri kaydedin, her defasında bilgilerini girmeden hızlıca araç, transfer ve otel rezervasyonunuzu yapın, uçak biletinizi satın alın.",
-            },
-            {
-              title: "Özel Fırsatlardan Yararlanın",
-              description: "Üyelere özel indirim fırsatlarından yararlanın.",
-            },
-            {
-              title: "Seyahatlerinizi Yönetin",
-              description:
-                "Tüm uçak, otel, araç ve transfer rezervasyonlarınızı tek bir yerden takip edip yönetebilirsiniz.",
-            },
-            {
-              title: "Fatura Adresleri",
-              description:
-                "Fatura adreslerinizi kaydedin, her defasında bilgilerinizi girmeden hızlıca araç, transfer ve otel rezervasyonunuzu yapın, uçak biletinizi satın alın.",
-            },
-          ].map((item) => (
-            <Paper
-              key={item.title}
-              variant="outlined"
-              sx={{
-                p: 1.5,
-                border: "1px solid #d9e0ee",
-                borderRadius: 1,
-                bgcolor: "#f9fafe",
-                boxShadow: "none",
-                cursor: "default",
-                ...paperHoverSx,
-              }}
-            >
-              <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#1f3971" }}>{item.title}</Typography>
-              <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#5c6883" }}>{item.description}</Typography>
-            </Paper>
-          ))}
-        </Box>
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
-          <Button href="/register" variant="contained" sx={{ textTransform: "none", bgcolor: "#1f3971", boxShadow: "none", "&:hover": { bgcolor: "#264a90" } }}>
-            Üye Ol
-          </Button>
-        </Box>
-      </Container>
-
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pb: 6 }}>
-        <Paper
-          variant="outlined"
-          sx={{
-            p: { xs: 2, md: 3 },
-            border: "1px solid #d9e0ee",
-            borderRadius: 2,
-            bgcolor: "#f7f9fd",
-            boxShadow: "none",
-            textAlign: "center",
-          }}
-        >
-          <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: "#1f3971" }}>Kampanyalar</Typography>
-          <Typography sx={{ mt: 1, fontSize: "0.86rem", color: "#5c6883" }}>
-            Donemsel indirimler, ogrenci avantajlari ve erken rezervasyon firsatlari burada.
-          </Typography>
-          <Button
-            href="/campaigns"
-            variant="contained"
-            disableElevation
-            sx={{ mt: 2, textTransform: "none", bgcolor: "#1f3971", "&:hover": { bgcolor: "#264a90" } }}
-          >
-            Kampanyalari Gor
-          </Button>
-        </Paper>
+          Türkiye&apos;nin Lider Otobüs Bileti Platformu
+        </Typography>
+        <Typography sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85, mb: 1.5 }}>
+          Biletim A.Ş., Türkiye genelindeki yüzlerce otobüs firmasının seferlerini tek ekranda karşılaştırmanızı sağlayan kurumsal seyahat platformudur. 256-bit SSL şifreleme altyapısıyla güvenli ödeme imkânı sunmakta; hızlı bilet satın alma, kolay iptal ve iade süreçleriyle müşteri memnuniyetini ön planda tutmaktadır.
+        </Typography>
+        <Typography sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85 }}>
+          Promosyonlu seferler ve anlık koltuk durumu ile seyahat planlamanızı dakikalar içinde tamamlayın. İster iş ister tatil seyahati olsun, en uygun otobüs biletine ulaşmak için kalkış ve varış noktanızı seçin.
+        </Typography>
       </Container>
 
       <CorporateFooter />

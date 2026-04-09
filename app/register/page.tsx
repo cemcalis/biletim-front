@@ -1,9 +1,12 @@
 "use client";
 
-import { Box, Button, Container, Paper, Typography, TextField } from "@mui/material";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Box, Button, Container, Divider, Paper, TextField, Typography } from "@mui/material";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import UserNavbar from "@/components/user-navbar";
+import { CorporateFooter } from "@/components/corporate-footer";
 import { setStoredUser } from "@/lib/session";
 import { apiRequest } from "@/lib/api";
 
@@ -28,124 +31,118 @@ export default function RegisterPage() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError("Lütfen tüm alanları doldurunuz.");
       return;
     }
-
     if (password.length < 6) {
-      setError("Şifre en az 6 karakterden oluşmalıdır.");
+      setError("Şifre en az 6 karakter olmalıdır.");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Şifreler eşleşmiyor.");
       return;
     }
-
     setLoading(true);
-
     try {
-      const response = await apiRequest<RegisterResponse>("/auth/register", "POST", {
-        name,
-        email,
-        password,
-      });
-
+      const response = await apiRequest<RegisterResponse>("/auth/register", "POST", { name, email, password });
       setStoredUser(response.user.name, response.user.email, response.access_token);
       router.push("/my-bookings");
-    } catch (err) {
-      setError("Kayıt işlemi başarısız oldu. Lütfen bilgilerinizi kontrol edin.");
-      console.error("Registration failed:", err);
+    } catch {
+      setError("Kayıt işlemi başarısız. Bilgilerinizi kontrol edin.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6fa", color: "#12203a" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
       <UserNavbar active="home" />
-      <Container maxWidth="sm" sx={{ py: 6 }}>
-        <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, border: "1px solid #dce3f1", boxShadow: "none" }}>
-          <Typography sx={{ fontSize: "1.8rem", fontWeight: 700, letterSpacing: "-0.03em" }}>Kayıt</Typography>
-          <Typography sx={{ mt: 1, fontSize: "0.9rem", color: "#5b6b87" }}>Yeni hesap oluşturmak için bilgilerinizi girin.</Typography>
-
-          <Box component="form" onSubmit={onSubmit} sx={{ mt: 3, display: "grid", gap: 1.5 }}>
-            {error && (
-              <Typography sx={{ fontSize: "0.85rem", color: "#d34255", bgcolor: "#fde8eb", p: 1.5, borderRadius: 1 }}>
-                {error}
+      <Container maxWidth="sm" sx={{ py: 8, flex: 1 }}>
+        <Paper elevation={0} sx={{ p: { xs: 3, sm: 5 }, border: "1px solid #e2e8f0", borderRadius: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+            <Box sx={{ width: 36, height: 36, bgcolor: "#002D62", borderRadius: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <PersonAddOutlinedIcon sx={{ color: "#ffffff", fontSize: 18 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+                Yeni Hesap Oluşturun
               </Typography>
+              <Typography sx={{ fontSize: "0.82rem", color: "#64748b" }}>
+                Biletim A.Ş. müşteri portalı
+              </Typography>
+            </Box>
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
+
+          <Box component="form" onSubmit={onSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {error && (
+              <Box sx={{ p: 1.5, bgcolor: "#fef2f2", border: "1px solid #fecaca", borderRadius: 1 }}>
+                <Typography sx={{ fontSize: "0.85rem", color: "#dc2626" }}>{error}</Typography>
+              </Box>
             )}
             <TextField
-              size="small"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
               label="Ad Soyad"
-              placeholder="Örn: Cem Çalış"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               disabled={loading}
+              fullWidth
+              autoFocus
             />
             <TextField
-              size="small"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              label="E-posta"
-              placeholder="Örn: cem@example.com"
+              label="E-posta Adresi"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
+              fullWidth
+              autoComplete="email"
             />
             <TextField
-              size="small"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
               label="Şifre"
-              placeholder="En az 6 karakter"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              fullWidth
+              autoComplete="new-password"
             />
             <TextField
-              size="small"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              label="Şifre (Tekrar)"
-              placeholder="Şifrenizi tekrar girin"
+              label="Şifre Tekrar"
               type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
+              fullWidth
             />
             <Button
               type="submit"
               variant="contained"
-              disableElevation
               disabled={loading}
               sx={{
-                alignSelf: "start",
+                mt: 1,
+                height: 48,
+                bgcolor: "#002D62",
+                "&:hover": { bgcolor: "#001f44" },
                 textTransform: "none",
-                bgcolor: "#2a64e8",
-                boxShadow: "none",
-                "&:disabled": { bgcolor: "#a0c4ff", color: "#fff" },
+                fontWeight: 700,
+                fontSize: "0.95rem",
               }}
             >
               {loading ? "Kaydediliyor..." : "Kayıt Ol"}
             </Button>
           </Box>
 
-          <Typography sx={{ mt: 2.5, fontSize: "0.85rem", color: "#5b6b87" }}>
+          <Typography sx={{ mt: 3, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
             Zaten hesabınız var mı?{" "}
-            <Box
-              component="a"
-              href="/login"
-              sx={{
-                color: "#2a64e8",
-                textDecoration: "none",
-                fontWeight: 600,
-                "&:hover": { textDecoration: "underline" },
-              }}
-            >
-              Giriş yapın
+            <Box component={Link} href="/login" sx={{ color: "#002D62", fontWeight: 700, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
+              Giriş Yapın
             </Box>
           </Typography>
         </Paper>
       </Container>
+      <CorporateFooter />
     </Box>
   );
 }

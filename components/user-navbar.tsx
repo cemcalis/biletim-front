@@ -25,9 +25,7 @@ type UserNavbarProps = {
 
 const navItems = [
   { label: "Ana Sayfa", href: "/", key: "home" as const },
-  { label: "Otobüs Ara", href: "/search-buses", key: "search" as const },
-  { label: "Kampanyalar", href: "/campaigns", key: "campaigns" as const },
-  { label: "Sefer Takibi", href: "/track-bus", key: "track" as const },
+  { label: "Sefer Sorgulama", href: "/search-buses", key: "search" as const },
   { label: "Rezervasyonlarım", href: "/my-bookings", key: "bookings" as const },
 ];
 
@@ -55,15 +53,14 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
     const nextName = formName.trim();
     const nextEmail = formEmail.trim();
     if (!nextName || !nextEmail) {
-      setProfileInfo("Ad soyad ve e-posta zorunludur.");
+      setProfileInfo("Lütfen tüm alanları doldurunuz.");
       return;
     }
-
     setStoredUser(nextName, nextEmail);
     setName(nextName);
     setEmail(nextEmail);
     setDisplayName(nextName);
-    setProfileInfo("Bilgileriniz güncellendi.");
+    setProfileInfo("Bilgileriniz başarıyla güncellendi.");
   }
 
   function onLogout() {
@@ -93,35 +90,43 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
       position={isHero ? "absolute" : "sticky"}
       elevation={0}
       sx={{
-        bgcolor: isHero ? "transparent" : "#fff",
-        color: isHero ? "#fff" : "#102040",
-        borderBottom: isHero ? "none" : "1px solid #e3e8f1",
+        bgcolor: isHero ? "transparent" : "#ffffff",
+        color: isHero ? "#ffffff" : "#0f172a",
+        borderBottom: isHero ? "none" : "1px solid #e2e8f0",
         boxShadow: "none",
         zIndex: 12,
       }}
     >
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 } }}>
-        <Toolbar disableGutters sx={{ minHeight: isHero ? 72 : 60, justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 } }}>
+        <Toolbar disableGutters sx={{ minHeight: isHero ? 80 : 68, justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 5 }}>
             <Box
               component={Link}
               href="/"
-              sx={{ display: "flex", alignItems: "center", gap: 1, color: "inherit", textDecoration: "none" }}
+              sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "inherit", textDecoration: "none" }}
             >
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: isHero ? "#4ed5ff" : "#2b68ff" }} />
-              <Typography sx={{ fontSize: isHero ? "1.05rem" : "0.95rem", fontWeight: 800, letterSpacing: isHero ? "0.02em" : "normal" }}>
-                Near East
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  bgcolor: "#D4AF37",
+                  borderRadius: "3px",
+                }}
+              />
+              <Typography
+                sx={{
+                  fontFamily: "var(--font-display), 'Playfair Display', serif",
+                  fontSize: "1.15rem",
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                BİLETİM A.Ş.
               </Typography>
             </Box>
 
-            <Box sx={{ display: { xs: "none", lg: "flex" }, gap: isHero ? 0.5 : 0.75 }}>
-              {(isHero
-                ? [
-                    { label: "Otobüs", href: "/search-buses", key: "search" as const },
-                    { label: "Kampanyalar", href: "/campaigns", key: "campaigns" as const },
-                  ]
-                : navItems
-              ).map((item) => {
+            <Box sx={{ display: { xs: "none", lg: "flex" }, gap: 0.5 }}>
+              {navItems.map((item) => {
                 const isActive = active === item.key;
                 return (
                   <Button
@@ -131,17 +136,22 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
                     disableRipple
                     variant="text"
                     sx={{
-                      minWidth: "auto",
-                      px: isHero ? 0.9 : 1.25,
-                      py: isHero ? 0.55 : 0.75,
-                      borderRadius: 1,
-                      fontSize: isHero ? "0.78rem" : "0.8rem",
-                      fontWeight: isHero ? 600 : 500,
+                      px: 1.5,
+                      py: 0.75,
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
                       textTransform: "none",
-                      color: isHero ? "#eef6ff" : isActive ? "#2a63e8" : "#30405c",
-                      bgcolor: isHero ? "transparent" : isActive ? "#eaf0ff" : "transparent",
+                      letterSpacing: "0.01em",
+                      color: isHero
+                        ? isActive ? "#D4AF37" : "#ffffff"
+                        : isActive ? "#002D62" : "#64748b",
+                      bgcolor: isActive && !isHero ? "#f1f5f9" : "transparent",
                       boxShadow: "none",
-                      "&:hover": { bgcolor: isHero ? "#2b4a89" : isActive ? "#eaf0ff" : "#f2f5fa" },
+                      borderRadius: "4px",
+                      "&:hover": {
+                        bgcolor: isHero ? "rgba(255,255,255,0.1)" : "#f1f5f9",
+                        color: isHero ? "#ffffff" : "#0f172a",
+                      },
                     }}
                   >
                     {item.label}
@@ -151,27 +161,26 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
             </Box>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {isHero ? (
-              <>
-              </>
-            ) : null}
-
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             {displayName ? (
               <Button
                 onClick={openProfileMenu}
-                variant="text"
+                variant="outlined"
                 disableRipple
                 sx={{
-                  minWidth: "auto",
-                  px: 1.25,
+                  px: 2,
                   py: 0.75,
-                  borderRadius: 1,
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  color: isHero ? "#fff" : "#24324f",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
                   textTransform: "none",
+                  color: isHero ? "#ffffff" : "#002D62",
+                  borderColor: isHero ? "rgba(255,255,255,0.3)" : "#e2e8f0",
+                  borderRadius: "4px",
                   boxShadow: "none",
+                  "&:hover": {
+                    borderColor: isHero ? "#ffffff" : "#002D62",
+                    bgcolor: "transparent",
+                  },
                 }}
               >
                 {displayName}
@@ -181,47 +190,56 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
                 <Button
                   component={Link}
                   href="/login"
-                  variant="text"
+                  variant="outlined"
                   disableRipple
                   sx={{
-                    minWidth: "auto",
-                    px: isHero ? 2 : 1.25,
-                    py: isHero ? 0.5 : 0.75,
-                    fontSize: "0.8rem",
+                    px: 2,
+                    py: 0.75,
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
                     textTransform: "none",
-                    color: isHero ? "#fff" : "#24324f",
-                    border: isHero ? "1px solid rgba(255,255,255,0.7)" : "none",
-                    borderRadius: isHero ? 999 : 1,
+                    color: isHero ? "#ffffff" : "#002D62",
+                    borderColor: isHero ? "rgba(255,255,255,0.3)" : "#e2e8f0",
+                    borderRadius: "4px",
                     boxShadow: "none",
+                    "&:hover": {
+                      borderColor: isHero ? "#ffffff" : "#002D62",
+                      bgcolor: "transparent",
+                    },
                   }}
                 >
-                  Giriş
+                  Giriş Yap
                 </Button>
                 <Button
                   component={Link}
                   href="/register"
-                  variant="text"
                   disableRipple
                   sx={{
                     display: { xs: "none", md: "inline-flex" },
-                    minWidth: "auto",
-                    px: 1.25,
+                    px: 2,
                     py: 0.75,
-                    fontSize: "0.8rem",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
                     textTransform: "none",
-                    color: isHero ? "#e9f3ff" : "#24324f",
+                    bgcolor: isHero ? "#ffffff" : "#002D62",
+                    color: isHero ? "#002D62" : "#ffffff",
+                    borderRadius: "4px",
                     boxShadow: "none",
+                    "&:hover": {
+                      bgcolor: isHero ? "#f0f0f0" : "#001f44",
+                    },
                   }}
                 >
                   Kayıt Ol
                 </Button>
               </>
             )}
-            {isHero ? (
-              <IconButton size="small" sx={{ color: "#fff", ml: 0.25, display: { xs: "inline-flex", lg: "none" } }}>
-                <MenuRoundedIcon />
-              </IconButton>
-            ) : null}
+            <IconButton
+              size="small"
+              sx={{ color: isHero ? "#fff" : "#64748b", display: { xs: "inline-flex", lg: "none" } }}
+            >
+              <MenuRoundedIcon />
+            </IconButton>
           </Box>
         </Toolbar>
       </Container>
@@ -232,27 +250,72 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
         onClose={closeProfileMenu}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { mt: 1, width: 300, border: "1px solid #d8deec", boxShadow: "none" } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              width: 300,
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.1)",
+              borderRadius: 2,
+            },
+          },
+        }}
       >
-        <Paper elevation={0} sx={{ p: 2, boxShadow: "none" }}>
-          <Typography sx={{ fontSize: "0.9rem", fontWeight: 700, color: "#1a2640" }}>Kişisel Bilgiler</Typography>
-          <Typography sx={{ mt: 0.5, fontSize: "0.78rem", color: "#5f6d88" }}>
-            Adınıza tıklayarak bilgilerinizi güncelleyebilirsiniz.
+        <Paper elevation={0} sx={{ p: 3 }}>
+          <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", mb: 0.5 }}>
+            Kullanıcı Profili
           </Typography>
-
-          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1.25 }}>
-            <TextField size="small" value={formName} onChange={(event) => setFormName(event.target.value)} placeholder="Örn: Cem Çalış" label="Ad Soyad" />
-            <TextField size="small" value={formEmail} onChange={(event) => setFormEmail(event.target.value)} placeholder="Örn: cem@example.com" label="E-posta" />
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button onClick={onSaveProfile} variant="contained" disableElevation sx={{ fontSize: "0.75rem", textTransform: "none", bgcolor: "#1f3971", boxShadow: "none", "&:hover": { bgcolor: "#264a90" } }}>
+          <Typography sx={{ fontSize: "0.82rem", color: "#64748b", mb: 3 }}>
+            {email}
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <TextField
+              variant="outlined"
+              size="small"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              label="Ad Soyad"
+              fullWidth
+            />
+            <TextField
+              variant="outlined"
+              size="small"
+              value={formEmail}
+              onChange={(e) => setFormEmail(e.target.value)}
+              label="E-Posta"
+              type="email"
+              fullWidth
+            />
+            {profileInfo && (
+              <Typography sx={{ fontSize: "0.8rem", color: "#059669", fontWeight: 500 }}>
+                {profileInfo}
+              </Typography>
+            )}
+            <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+              <Button
+                onClick={onSaveProfile}
+                variant="contained"
+                fullWidth
+                sx={{
+                  bgcolor: "#002D62",
+                  "&:hover": { bgcolor: "#001f44" },
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                }}
+              >
                 Kaydet
               </Button>
-              <Button onClick={onLogout} variant="outlined" sx={{ fontSize: "0.75rem", textTransform: "none", borderColor: "#f0c5cc", color: "#d34255", boxShadow: "none" }}>
-                Çıkış Yap
+              <Button
+                onClick={onLogout}
+                variant="outlined"
+                color="error"
+                sx={{ textTransform: "none", fontWeight: 600, fontSize: "0.85rem", borderRadius: "4px" }}
+              >
+                Çıkış
               </Button>
             </Box>
-            {profileInfo ? <Typography sx={{ fontSize: "0.75rem", color: "#1f3971" }}>{profileInfo}</Typography> : null}
-            {name && email ? <Typography sx={{ fontSize: "0.72rem", color: "#6a7894" }}>{email}</Typography> : null}
           </Box>
         </Paper>
       </Popover>

@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
-const bodyFont = Manrope({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const accentFont = Space_Grotesk({
-  variable: "--font-geist-mono",
+const playfair = Playfair_Display({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Near East Ulaşım | Otobüs Bilet Sistemi",
-  description: "Next.js ile hazırlanmış Türkçe, kurumsal otobüs rezervasyon arayüzü.",
+  title: "Biletim Corporate | Premium Seyahat Çözümleri",
+  description: "Kurumsal seyahat planlamasında güvenin adresi. Modern araç filosu, üst düzey konfor ve kesintisiz müşteri desteği.",
 };
 
 export default function RootLayout({
@@ -25,9 +25,12 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${bodyFont.variable} ${accentFont.variable} h-full antialiased`}
+      className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+      </body>
     </html>
   );
 }
+
