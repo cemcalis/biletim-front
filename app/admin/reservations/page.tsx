@@ -104,7 +104,7 @@ export default function AdminReservationsPage() {
 
   return (
     <AdminPageShell
-      title="Near East Ulasim"
+      title="Near East Way"
       subtitle="Rezervasyon yönetimi"
       active="trips"
       username={username}

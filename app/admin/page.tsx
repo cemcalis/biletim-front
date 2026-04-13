@@ -25,19 +25,61 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  Card,
+  CardContent,
+  Tabs,
+  Tab,
+  Select,
+  FormControl,
+  InputLabel,
+  Alert,
+  Snackbar,
+  Tooltip,
+  LinearProgress,
+  Badge,
+  Menu,
 } from "@mui/material";
-import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOutlined";
-import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
-import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
-import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
-import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
-import QueryStatsOutlinedIcon from "@mui/icons-material/QueryStatsOutlined";
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import DirectionsBusOutlinedIcon from "@mui/icons-material/DirectionsBusOutlined";
+import {
+  AddCircleOutlineOutlined as AddCircleOutlineOutlinedIcon,
+  AssignmentTurnedInOutlined as AssignmentTurnedInOutlinedIcon,
+  FilterAltOutlined as FilterAltOutlinedIcon,
+  GroupOutlined as GroupOutlinedIcon,
+  NotificationsNoneRounded as NotificationsNoneRoundedIcon,
+  QueryStatsOutlined as QueryStatsOutlinedIcon,
+  SearchRounded as SearchRoundedIcon,
+  SettingsOutlined as SettingsOutlinedIcon,
+  HomeOutlined as HomeOutlinedIcon,
+  DirectionsBusOutlined as DirectionsBusOutlinedIcon,
+  RouteOutlined as RouteOutlinedIcon,
+  DirectionsCarOutlined as VehicleIcon,
+  EventSeatOutlined as SeatIcon,
+  ReceiptOutlined as ReceiptIcon,
+  LogoutOutlined as LogoutIcon,
+  RefreshOutlined as RefreshIcon,
+  DownloadOutlined as DownloadIcon,
+  TrendingUpOutlined as TrendingUpIcon,
+  TrendingDownOutlined as TrendingDownIcon,
+  MoreVert as MoreVertIcon,
+  EditOutlined as EditIcon,
+  DeleteOutlineOutlined as DeleteIcon,
+  CheckCircleOutlined as CheckCircleIcon,
+  CancelOutlined as CancelIcon,
+  PendingOutlined as PendingIcon,
+  LocalOfferOutlined as OfferIcon,
+  SpeedOutlined as SpeedIcon,
+  AttachMoneyOutlined as MoneyIcon,
+  PeopleOutlined as PeopleIcon,
+  LocationOnOutlined as LocationIcon,
+} from "@mui/icons-material";
 
 import { apiGet, apiRequest } from "../../lib/api";
+import { clearStoredUser } from "../../lib/session";
 
 type AdminOverviewResponse = {
   metrics: {
@@ -137,6 +179,16 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [trips, setTrips] = useState<AdminTrip[]>([]);
+  const [newTripOpen, setNewTripOpen] = useState(false);
+  const [tripStatus, setTripStatus] = useState("");
+  const [newTripValues, setNewTripValues] = useState({
+    company: "",
+    from: "",
+    to: "",
+    departureDate: "",
+    departureTime: "",
+    price: "",
+  });
 
   useEffect(() => {
     setToken(localStorage.getItem("admin_token") ?? "");
@@ -196,10 +248,62 @@ export default function AdminPage() {
     if (res.ok) setRequests((prev) => prev.filter((r) => r.id !== companyId));
   }
 
-  const visibleMenuItems = useMemo(
-    () => sectionConfig.filter((item) => roleConfig[role].allowedSections.includes(item.key)),
-    [role]
-  );
+  async function onCreateTrip(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTripStatus("");
+
+    if (!newTripValues.company || !newTripValues.from || !newTripValues.to || !newTripValues.departureDate || !newTripValues.departureTime || !newTripValues.price) {
+      setTripStatus("Lütfen tüm sefer bilgilerini doldurun.");
+      return;
+    }
+
+    try {
+      const result = await apiRequest<{ ok: boolean; trip?: AdminTrip; message?: string }>(
+        "/admin/trips",
+        "POST",
+        {
+          token,
+          trip: {
+            company: newTripValues.company,
+            from: newTripValues.from,
+            to: newTripValues.to,
+            departureDate: newTripValues.departureDate,
+            departureTime: newTripValues.departureTime,
+            price: Number(newTripValues.price),
+          },
+        },
+      );
+
+      if (!result.ok) {
+        setTripStatus(result.message ?? "Sefer oluşturulamadı.");
+        return;
+      }
+
+      if (result.trip) {
+        setTrips((prev) => [result.trip!, ...prev]);
+      }
+      setTripStatus("Sefer başarıyla oluşturuldu.");
+      setNewTripValues({ company: "", from: "", to: "", departureDate: "", departureTime: "", price: "" });
+      setNewTripOpen(false);
+    } catch {
+      setTripStatus("Sefer oluşturulamadı. Lütfen tekrar deneyin.");
+    }
+  }
+
+  async function onDeleteTrip(tripId: string) {
+    const confirmed = window.confirm("Bu seferi silmek istediğinizden emin misiniz?");
+    if (!confirmed) return;
+    try {
+      const result = await apiRequest<{ ok: boolean; message?: string }>(`/admin/trips/${tripId}`, "DELETE", { token });
+      if (result.ok) {
+        setTrips((prev) => prev.filter((t) => t.id !== tripId));
+      } else {
+        alert(result.message ?? "Sefer silinemedi.");
+      }
+    } catch {
+      alert("Sefer silinirken hata oluştu.");
+    }
+  }
 
   const companyOptions = useMemo(() => {
     const companies = Array.from(new Set(trips.map((t) => t.company).filter(Boolean))).sort((a, b) =>
@@ -224,13 +328,15 @@ export default function AdminPage() {
     });
   }, [filterWindow, searchTerm, selectedCompany, trips]);
 
+  const visibleMenuItems = sectionConfig.filter((item) => roleConfig[role].allowedSections.includes(item.key));
+
   // ── LOGIN SCREEN ───────────────────────────────────────────────────────────
   if (!token) {
     return (
       <Box sx={{ minHeight: "100vh", bgcolor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Paper elevation={0} sx={{ p: 5, maxWidth: 420, width: "100%", borderRadius: 2, border: "1px solid #e2e8f0", textAlign: "center" }}>
           <Box sx={{ width: 44, height: 44, bgcolor: "#002D62", borderRadius: 1, mx: "auto", mb: 2 }} />
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, color: "#0f172a" }}>BİLETİM A.Ş. Yönetim</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, color: "#0f172a" }}>Near East Way Yönetim</Typography>
           <Typography sx={{ color: "#64748b", mb: 4, fontSize: "0.9rem" }}>Kurumsal sisteme giriş yapın</Typography>
           <Box component="form" onSubmit={onLogin} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <TextField fullWidth label="Kullanıcı Adı" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
@@ -270,7 +376,7 @@ export default function AdminPage() {
       >
         <Box sx={{ p: 3, pb: 2 }}>
           <Typography sx={{ fontSize: "1.15rem", fontWeight: 800, letterSpacing: "-0.02em", color: "#ffffff" }}>
-            BİLETİM A.Ş.
+            Near East Way
           </Typography>
           <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mt: 0.5 }}>Yönetim Portalı</Typography>
         </Box>
@@ -428,18 +534,78 @@ export default function AdminPage() {
                 <Button
                   variant="contained"
                   startIcon={<AddCircleOutlineOutlinedIcon />}
-                  onClick={() => {
-                    if (role === "company-admin") {
-                      alert("Sefer onaya gönderildi! Sistem yöneticisi onaylamasının ardından satışa açılacaktır.");
-                    } else {
-                      alert("Yeni sefer formu açıldı. (Geliştirme aşamasında)");
-                    }
-                  }}
+                  onClick={() => setNewTripOpen((prev) => !prev)}
                   sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
                 >
-                  {role === "company-admin" ? "Yeni Sefer (Onaya Gönder)" : "Yeni Sefer Ekle"}
+                  {newTripOpen ? "Formu Gizle" : role === "company-admin" ? "Yeni Sefer (Onaya Gönder)" : "Yeni Sefer Ekle"}
                 </Button>
               </Box>
+
+              {newTripOpen && (
+                <Paper elevation={0} sx={{ p: 3, mb: 3, border: "1px solid #e2e8f0", borderRadius: 2, bgcolor: "#ffffff" }}>
+                  <Typography sx={{ fontWeight: 700, color: "#0f172a", mb: 2 }}>Yeni Sefer Oluştur</Typography>
+                  <Box component="form" onSubmit={onCreateTrip} sx={{ display: "grid", gap: 2 }}>
+                    <TextField
+                      label="Firma"
+                      value={newTripValues.company}
+                      onChange={(event) => setNewTripValues((prev) => ({ ...prev, company: event.target.value }))}
+                      fullWidth
+                    />
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                      <TextField
+                        label="Nereden"
+                        value={newTripValues.from}
+                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, from: event.target.value }))}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Nereye"
+                        value={newTripValues.to}
+                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, to: event.target.value }))}
+                        fullWidth
+                      />
+                    </Box>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                      <TextField
+                        label="Tarih"
+                        type="date"
+                        value={newTripValues.departureDate}
+                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, departureDate: event.target.value }))}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Saat"
+                        type="time"
+                        value={newTripValues.departureTime}
+                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, departureTime: event.target.value }))}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        fullWidth
+                      />
+                    </Box>
+                    <TextField
+                      label="Fiyat"
+                      type="number"
+                      value={newTripValues.price}
+                      onChange={(event) => setNewTripValues((prev) => ({ ...prev, price: event.target.value }))}
+                      fullWidth
+                    />
+                    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                      <Button type="submit" variant="contained" sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}>
+                        Sefer Oluştur
+                      </Button>
+                      <Button type="button" variant="outlined" onClick={() => setNewTripOpen(false)} sx={{ textTransform: "none", fontWeight: 600 }}>
+                        İptal
+                      </Button>
+                    </Box>
+                    {tripStatus && (
+                      <Typography sx={{ color: tripStatus.includes("başarıyla") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
+                        {tripStatus}
+                      </Typography>
+                    )}
+                  </Box>
+                </Paper>
+              )}
 
               {/* FILTER CHIPS */}
               <Box sx={{ display: "flex", gap: 1, mb: 3, flexWrap: "wrap" }}>

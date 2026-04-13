@@ -8,7 +8,12 @@ import {
   Box,
   Button,
   Container,
+  Divider,
+  Drawer,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
   Paper,
   Popover,
   TextField,
@@ -16,7 +21,8 @@ import {
   Typography,
 } from "@mui/material";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import { clearStoredUser, getStoredUser, setStoredUser } from "../lib/session";
+import CloseIcon from "@mui/icons-material/Close";
+import { clearStoredUser, getStoredUser, setStoredUser, type User as StoredUser } from "../lib/session";
 
 type UserNavbarProps = {
   active: "home" | "search" | "track" | "bookings" | "admin";
@@ -26,8 +32,11 @@ type UserNavbarProps = {
 const navItems = [
   { label: "Ana Sayfa", href: "/", key: "home" as const },
   { label: "Sefer Sorgulama", href: "/search-buses", key: "search" as const },
+  { label: "Sefer İzleme", href: "/track-bus", key: "track" as const },
   { label: "Rezervasyonlarım", href: "/my-bookings", key: "bookings" as const },
 ];
+
+const adminNavItem = { label: "Yönetim Paneli", href: "/admin", key: "admin" as const };
 
 export default function UserNavbar({ active, variant = "default" }: UserNavbarProps) {
   const [name, setName] = useState("");
@@ -37,16 +46,21 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
   const [formEmail, setFormEmail] = useState("");
   const [profileInfo, setProfileInfo] = useState("");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<StoredUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const stored = getStoredUser();
-    const nextName = stored.name.trim();
-    const nextEmail = stored.email.trim();
+    setUser(stored);
+    const nextName = stored.name?.trim() ?? "";
+    const nextEmail = stored.email?.trim() ?? "";
     setName(nextName);
     setEmail(nextEmail);
     setDisplayName(nextName);
     setFormName(nextName);
     setFormEmail(nextEmail);
+    setIsAdmin(stored.role === "admin" || stored.email?.includes("admin") || false);
   }, []);
 
   function onSaveProfile() {
@@ -72,6 +86,17 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
     setFormEmail("");
     setProfileInfo("");
     setAnchorEl(null);
+    setUser(null);
+    setIsAdmin(false);
+    window.location.href = "/";
+  }
+
+  function toggleMobileMenu() {
+    setMobileOpen((prev) => !prev);
+  }
+
+  function closeMobileMenu() {
+    setMobileOpen(false);
   }
 
   function openProfileMenu(event: MouseEvent<HTMLElement>) {
@@ -121,7 +146,7 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
                   letterSpacing: "-0.02em",
                 }}
               >
-                BİLETİM A.Ş.
+                Near East Way
               </Typography>
             </Box>
 
@@ -158,6 +183,34 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
                   </Button>
                 );
               })}
+              {isAdmin && (
+                <Button
+                  component={Link}
+                  href={adminNavItem.href}
+                  disableRipple
+                  variant="text"
+                  sx={{
+                    px: 1.5,
+                    py: 0.75,
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    letterSpacing: "0.01em",
+                    color: active === "admin"
+                      ? isHero ? "#D4AF37" : "#002D62"
+                      : isHero ? "#ffffff" : "#64748b",
+                    bgcolor: active === "admin" && !isHero ? "#f1f5f9" : "transparent",
+                    boxShadow: "none",
+                    borderRadius: "4px",
+                    "&:hover": {
+                      bgcolor: isHero ? "rgba(255,255,255,0.1)" : "#f1f5f9",
+                      color: isHero ? "#ffffff" : "#0f172a",
+                    },
+                  }}
+                >
+                  {adminNavItem.label}
+                </Button>
+              )}
             </Box>
           </Box>
 
@@ -236,13 +289,122 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
             )}
             <IconButton
               size="small"
+              onClick={toggleMobileMenu}
               sx={{ color: isHero ? "#fff" : "#64748b", display: { xs: "inline-flex", lg: "none" } }}
             >
-              <MenuRoundedIcon />
+              {mobileOpen ? <CloseIcon /> : <MenuRoundedIcon />}
             </IconButton>
           </Box>
         </Toolbar>
       </Container>
+
+      <Drawer
+        anchor="right"
+        open={mobileOpen}
+        onClose={closeMobileMenu}
+        slotProps={{
+          paper: {
+            sx: { width: { xs: "85vw", sm: 320 }, bgcolor: "#ffffff" },
+          },
+        }}
+      >
+        <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography sx={{ fontWeight: 700, color: "#002D62", fontSize: "1.1rem" }}>
+            Menü
+          </Typography>
+          <IconButton onClick={closeMobileMenu}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <Divider />
+        <List sx={{ pt: 1 }}>
+          {navItems.map((item) => (
+            <ListItem key={item.key} disablePadding>
+              <ListItemButton
+                component={Link}
+                href={item.href}
+                onClick={closeMobileMenu}
+                selected={active === item.key}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  color: active === item.key ? "#002D62" : "#64748b",
+                  fontWeight: active === item.key ? 700 : 600,
+                  borderLeft: active === item.key ? "3px solid #002D62" : "3px solid transparent",
+                  "&:hover": { bgcolor: "#f8fafc" },
+                }}
+              >
+                {item.label}
+              </ListItemButton>
+            </ListItem>
+          ))}
+          {isAdmin && (
+            <ListItem key={adminNavItem.key} disablePadding>
+              <ListItemButton
+                component={Link}
+                href={adminNavItem.href}
+                onClick={closeMobileMenu}
+                selected={active === adminNavItem.key}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  color: active === adminNavItem.key ? "#002D62" : "#64748b",
+                  fontWeight: active === adminNavItem.key ? 700 : 600,
+                  borderLeft: active === adminNavItem.key ? "3px solid #002D62" : "3px solid transparent",
+                  "&:hover": { bgcolor: "#f8fafc" },
+                }}
+              >
+                {adminNavItem.label}
+              </ListItemButton>
+            </ListItem>
+          )}
+        </List>
+        <Divider />
+        <Box sx={{ p: 2 }}>
+          {displayName ? (
+            <>
+              <Typography sx={{ fontWeight: 600, color: "#0f172a", mb: 0.5 }}>
+                {displayName}
+              </Typography>
+              <Typography sx={{ fontSize: "0.8rem", color: "#64748b", mb: 2 }}>
+                {email}
+              </Typography>
+              <Button
+                onClick={() => { onLogout(); closeMobileMenu(); }}
+                variant="outlined"
+                color="error"
+                fullWidth
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                Çıkış Yap
+              </Button>
+            </>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Button
+                component={Link}
+                href="/login"
+                onClick={closeMobileMenu}
+                variant="outlined"
+                fullWidth
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                Giriş Yap
+              </Button>
+              <Button
+                component={Link}
+                href="/register"
+                onClick={closeMobileMenu}
+                variant="contained"
+                fullWidth
+                sx={{ textTransform: "none", fontWeight: 600, bgcolor: "#002D62" }}
+              >
+                Kayıt Ol
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Drawer>
 
       <Popover
         open={popoverOpen}
@@ -306,6 +468,7 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
                 }}
               >
                 Kaydet
+              
               </Button>
               <Button
                 onClick={onLogout}

@@ -64,12 +64,6 @@ const POPULAR_ROUTES = [
 
 export default function HomePage() {
   const router = useRouter();
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [date, setDate] = useState("");
-  const [mounted, setMounted] = useState(false);
-  const [, setRouteCards] = useState<RouteSummary[]>([]);
-
   const getToday = () => new Date().toISOString().slice(0, 10);
   const getTomorrow = () => {
     const d = new Date();
@@ -77,9 +71,12 @@ export default function HomePage() {
     return d.toISOString().slice(0, 10);
   };
 
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [date, setDate] = useState(getToday());
+  const [, setRouteCards] = useState<RouteSummary[]>([]);
+
   useEffect(() => {
-    setMounted(true);
-    setDate(getToday());
     apiGet<RouteSummary[]>("/routes")
       .then((data) => setRouteCards(data))
       .catch(() => setRouteCards([]));
@@ -113,7 +110,7 @@ export default function HomePage() {
               fontFamily: "var(--font-display), 'Playfair Display', serif",
             }}
           >
-            Türkiye&apos;nin Lider Otobüs Platformu
+            Kıbrıs&apos;nin Lider Otobüs Platformu
           </Typography>
           <Typography
             sx={{
@@ -136,8 +133,8 @@ export default function HomePage() {
               border: "1px solid #e2e8f0",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-              <DirectionsBusIcon sx={{ color: "#002D62", fontSize: 20 }} />
+            <Box sx={{display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <DirectionsBusIcon sx={{position:"sticky", color: "#002D62", fontSize: 20 }} />
               <Typography sx={{ fontWeight: 700, color: "#002D62", fontSize: "0.95rem" }}>
                 Otobüs Bileti
               </Typography>
@@ -203,7 +200,6 @@ export default function HomePage() {
                 />
 
                 <Box sx={{ display: "flex", flexDirection: "column", minWidth: { md: 220 } }}>
-                  {mounted && (
                     <>
                       <TextField
                         variant="outlined"
@@ -254,7 +250,6 @@ export default function HomePage() {
                         />
                       </Box>
                     </>
-                  )}
                 </Box>
 
                 <Button
@@ -287,7 +282,7 @@ export default function HomePage() {
           component="h2"
           sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", textAlign: "center", mb: 4 }}
         >
-          Neden Biletim A.Ş.?
+          Neden Near East Way?
         </Typography>
         <Box
           sx={{
@@ -371,10 +366,10 @@ export default function HomePage() {
           component="h3"
           sx={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", mb: 2 }}
         >
-          Türkiye&apos;nin Lider Otobüs Bileti Platformu
+          Kıbrıs&apos;nin Lider Otobüs Bileti Platformu
         </Typography>
         <Typography sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85, mb: 1.5 }}>
-          Biletim A.Ş., Türkiye genelindeki yüzlerce otobüs firmasının seferlerini tek ekranda karşılaştırmanızı sağlayan kurumsal seyahat platformudur. 256-bit SSL şifreleme altyapısıyla güvenli ödeme imkânı sunmakta; hızlı bilet satın alma, kolay iptal ve iade süreçleriyle müşteri memnuniyetini ön planda tutmaktadır.
+          Near East Way, Kıbrıs genelindeki yüzlerce otobüs firmasının seferlerini tek ekranda karşılaştırmanızı sağlayan kurumsal seyahat platformudur. 256-bit SSL şifreleme altyapısıyla güvenli ödeme imkânı sunmakta; hızlı bilet satın alma, kolay iptal ve iade süreçleriyle müşteri memnuniyetini ön planda tutmaktadır.
         </Typography>
         <Typography sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85 }}>
           Promosyonlu seferler ve anlık koltuk durumu ile seyahat planlamanızı dakikalar içinde tamamlayın. İster iş ister tatil seyahati olsun, en uygun otobüs biletine ulaşmak için kalkış ve varış noktanızı seçin.

@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Merriweather, Source_Sans_3 } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
-const inter = Inter({
+const sourceSans = Source_Sans_3({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const playfair = Playfair_Display({
+const merriweather = Merriweather({
   variable: "--font-display",
   subsets: ["latin"],
+  weight: ["400", "700", "900"],
 });
 
 export const metadata: Metadata = {
-  title: "Biletim Corporate | Premium Seyahat Çözümleri",
+  title: " Near East Way ",
   description: "Kurumsal seyahat planlamasında güvenin adresi. Modern araç filosu, üst düzey konfor ve kesintisiz müşteri desteği.",
 };
 
@@ -25,10 +27,10 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${inter.variable} ${playfair.variable} h-full antialiased`}
+      className={`${sourceSans.variable} ${merriweather.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

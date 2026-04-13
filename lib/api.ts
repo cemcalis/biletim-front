@@ -26,7 +26,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 
 export async function apiRequest<T>(
   path: string,
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   body?: unknown,
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

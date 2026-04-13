@@ -9,7 +9,7 @@ type CorporateBannerProps = {
 export function CorporateBanner({
   title,
   subtitle,
-  eyebrow = "Biletim A.Ş.",
+  eyebrow = "Near East Way",
 }: CorporateBannerProps) {
   return (
     <Box sx={{ bgcolor: "#002D62", color: "#ffffff", py: { xs: 4, md: 6 } }}>

@@ -36,7 +36,7 @@ export default function CampaignsPage() {
       <CorporateBanner
         eyebrow="Fırsatlar"
         title="Güncel Kampanyalar"
-        subtitle="Biletim A.Ş. müşterilerine özel indirim ve fırsat kampanyaları."
+        subtitle="Near East Way müşterilerine özel indirim ve fırsat kampanyaları."
       />
 
       <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 }, py: 6, flex: 1 }}>
@@ -92,7 +92,7 @@ export default function CampaignsPage() {
             </Box>{" "}
             numaralı müşteri hizmetleri hattımızı aramanız ya da{" "}
             <Box component="span" sx={{ color: "#002D62", fontWeight: 700 }}>
-              info@biletim-as.com.tr
+              info@neareastway.com.tr
             </Box>{" "}
             adresine e-posta göndermeniz yeterlidir.
           </Typography>

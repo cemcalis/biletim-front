@@ -75,7 +75,7 @@ export default function AdminStaticsPage() {
 
   return (
     <AdminPageShell
-      title="Near East Ulasim"
+      title="Near East Way"
       subtitle="Raporlar"
       active="reports"
       username={username}

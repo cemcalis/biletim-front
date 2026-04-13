@@ -10,33 +10,9 @@ import {
 } from "@mui/material";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
-import { apiGet } from "../../../lib/api";
+import { apiGet, apiRequest } from "../../../lib/api";
 import { AdminPageShell, AdminRole } from "@/components/admin-page-shell";
 import { SidebarItem } from "@/components/collapsible-sidebar";
-
-type BookingRecord = {
-  bookingCode: string;
-  route: string;
-  company: string;
-  seatNumber: string;
-  passengerName: string;
-  passengerEmail: string;
-  totalPrice: number;
-  status: "Confirmed" | "Completed" | "Canceled";
-  passengers: number;
-  travelDate: string;
-  departureTime: string;
-  arrivalTime: string;
-  createdAt: string;
-};
-
-type StoredUser = {
-  name: string;
-  email: string;
-  bookings: number;
-  lastTrip: string;
-  spent: number;
-};
 
 const menuItems: SidebarItem[] = [
   { label: "Ana Sayfa", href: "/admin", key: "overview" },
@@ -47,6 +23,20 @@ const menuItems: SidebarItem[] = [
   { label: "Ayarlar", href: "/admin#settings", key: "settings" },
 ];
 
+type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  isCompany: boolean;
+  createdAt: string;
+};
+
+type AdminUsersResponse = {
+  ok: boolean;
+  users?: AdminUser[];
+  message?: string;
+};
+
 function readStoredRole(): AdminRole {
   if (typeof window === "undefined") {
     return "super-admin";
@@ -54,26 +44,49 @@ function readStoredRole(): AdminRole {
   return (localStorage.getItem("admin_role") as AdminRole | null) ?? "super-admin";
 }
 
+function readStoredToken(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return localStorage.getItem("admin_token") ?? "";
+}
+
 export default function AdminUsersPage() {
-  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<AdminRole>("super-admin");
   const [username, setUsername] = useState("admin");
+  const [token, setToken] = useState("");
 
   useEffect(() => {
     setRole(readStoredRole());
     setUsername(localStorage.getItem("admin_username") ?? "admin");
+    setToken(readStoredToken());
   }, []);
 
   useEffect(() => {
-    async function loadBookings() {
+    async function loadUsers() {
       setLoading(true);
       setMessage("");
+      const adminToken = readStoredToken();
+
+      if (!adminToken) {
+        setMessage("Yönetici tokeni bulunamadı. Lütfen yeniden giriş yapın.");
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const data = await apiGet<BookingRecord[]>("/bookings");
-        setBookings(data);
+        const response = await apiGet<AdminUsersResponse>(`/admin/users?token=${encodeURIComponent(adminToken)}`);
+        if (!response.ok || !response.users) {
+          setMessage(response.message || "Kullanıcılar yüklenemedi.");
+          setUsers([]);
+        } else {
+          setUsers(response.users);
+        }
       } catch {
         setMessage("Kullanıcı listesi yüklenemedi.");
       } finally {
@@ -81,48 +94,56 @@ export default function AdminUsersPage() {
       }
     }
 
-    void loadBookings();
-  }, []);
+    void loadUsers();
+  }, [token]);
 
-  const users = useMemo(() => {
-    const grouped = new Map<string, StoredUser>();
-
-    bookings.forEach((booking) => {
-      const current = grouped.get(booking.passengerEmail) ?? {
-        name: booking.passengerName,
-        email: booking.passengerEmail,
-        bookings: 0,
-        lastTrip: booking.route,
-        spent: 0,
-      };
-
-      current.bookings += 1;
-      current.lastTrip = booking.route;
-      current.spent += booking.totalPrice;
-      grouped.set(booking.passengerEmail, current);
-    });
-
+  const filteredUsers = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("tr-TR");
-    return Array.from(grouped.values()).filter((user) => {
-      if (!needle) {
-        return true;
-      }
-      return [user.name, user.email, user.lastTrip].some((value) => value.toLocaleLowerCase("tr-TR").includes(needle));
+    return users.filter((user) => {
+      if (!needle) return true;
+      return [user.name, user.email].some((value) => value.toLocaleLowerCase("tr-TR").includes(needle));
     });
-  }, [bookings, search]);
+  }, [search, users]);
 
   const metrics = useMemo(
     () => [
-      { label: "Kullanıcı", value: users.length },
-      { label: "Rezervasyon", value: bookings.length },
+      { label: "Kullanıcı", value: filteredUsers.length },
+      { label: "Toplam", value: users.length },
       { label: "Aktif rol", value: role },
     ],
-    [bookings.length, role, users.length],
+    [filteredUsers.length, role, users.length],
   );
+
+  async function deleteUser(userId: string, email: string) {
+    setMessage("");
+    const adminToken = readStoredToken();
+    if (!adminToken) {
+      setMessage("Yönetici tokeni bulunamadı.");
+      return;
+    }
+
+    try {
+      const result = await apiRequest<{ ok: boolean; message?: string }>(
+        "/admin/users/delete",
+        "POST",
+        { token: adminToken, userId },
+      );
+
+      if (!result.ok) {
+        setMessage(result.message || `${email} silinemedi.`);
+        return;
+      }
+
+      setMessage(`${email} başarıyla silindi.`);
+      setUsers((current) => current.filter((user) => user.id !== userId));
+    } catch {
+      setMessage(`${email} silinemedi. Lütfen tekrar deneyin.`);
+    }
+  }
 
   return (
     <AdminPageShell
-      title="Near East Ulasim"
+      title="Near East Way"
       subtitle="Yönetici araçları"
       active="users"
       username={username}
@@ -149,7 +170,7 @@ export default function AdminUsersPage() {
           </Box>
           <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, px: 1.5, py: 1, borderRadius: 999, background: "#eef4ff", color: "#2b60d4", fontSize: "0.8rem", fontWeight: 700 }}>
             <GroupOutlinedIcon sx={{ fontSize: 18 }} />
-            {users.length} kayıt
+            {filteredUsers.length} kayıt
           </Box>
         </Box>
 
@@ -172,28 +193,37 @@ export default function AdminUsersPage() {
           <Typography sx={{ mt: 2 }}>Kullanıcılar yükleniyor...</Typography>
         ) : (
           <Box sx={{ mt: 2.5, display: "grid", gap: 1.5 }}>
-            {users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #dde4f1", boxShadow: "none" }}>
                 <Typography>Kayıtlı kullanıcı bulunamadı.</Typography>
               </Paper>
             ) : (
-              users.map((user) => (
+              filteredUsers.map((user) => (
                 <Paper key={user.email} elevation={0} sx={{ p: 2.25, borderRadius: 3, border: "1px solid #dde4f1", boxShadow: "none" }}>
                   <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
                     <Box>
-                      <Typography sx={{ fontSize: "1rem", fontWeight: 800 }}>{user.name}</Typography>
+                      <Typography sx={{ fontSize: "1rem", fontWeight: 800 }}>{user.name || "Adı yok"}</Typography>
                       <Typography sx={{ mt: 0.5, fontSize: "0.85rem", color: "#5b6b87" }}>{user.email}</Typography>
-                      <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#5b6b87" }}>Son rota: {user.lastTrip}</Typography>
+                      <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#5b6b87" }}>
+                        Üyelik tarihi: {new Date(user.createdAt).toLocaleDateString('tr-TR')}
+                      </Typography>
                     </Box>
 
                     <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
-                      <Typography sx={{ fontSize: "0.82rem", color: "#6c768b" }}>Rezervasyon</Typography>
-                      <Typography sx={{ fontSize: "1.1rem", fontWeight: 800 }}>{user.bookings}</Typography>
-                      <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#6c768b" }}>Toplam harcama</Typography>
-                      <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: "#2a64e8" }}>₺ {user.spent}</Typography>
+                      <Typography sx={{ fontSize: "0.82rem", color: "#6c768b" }}>Tip</Typography>
+                      <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: "#2a64e8" }}>
+                        {user.isCompany ? "Firma" : "Bireysel"}
+                      </Typography>
                     </Box>
 
-                    <Button variant="outlined" color="error" size="small" startIcon={<DeleteOutlineRoundedIcon />} onClick={() => setMessage(`${user.email} için silme işlemi bu sürümde kapalı.`)} sx={{ textTransform: "none", borderRadius: 2, alignSelf: "center" }}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      startIcon={<DeleteOutlineRoundedIcon />}
+                      onClick={() => deleteUser(user.id, user.email)}
+                      sx={{ textTransform: "none", borderRadius: 2, alignSelf: "center" }}
+                    >
                       Kullanıcıyı Sil
                     </Button>
                   </Box>

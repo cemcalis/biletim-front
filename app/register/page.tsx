@@ -4,11 +4,13 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Box, Button, Container, Divider, Paper, TextField, Typography } from "@mui/material";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import UserNavbar from "@/components/user-navbar";
 import { CorporateFooter } from "@/components/corporate-footer";
 import { setStoredUser } from "@/lib/session";
 import { apiRequest } from "@/lib/api";
+import { handleGoogleAuth } from "@/lib/google-auth";
 
 interface RegisterResponse {
   access_token: string;
@@ -69,7 +71,7 @@ export default function RegisterPage() {
                 Yeni Hesap Oluşturun
               </Typography>
               <Typography sx={{ fontSize: "0.82rem", color: "#64748b" }}>
-                Biletim A.Ş. müşteri portalı
+                Near East Way
               </Typography>
             </Box>
           </Box>
@@ -133,6 +135,29 @@ export default function RegisterPage() {
               {loading ? "Kaydediliyor..." : "Kayıt Ol"}
             </Button>
           </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          <GoogleLogin
+            onSuccess={async (credentialResponse: CredentialResponse) => {
+              setError("");
+              setLoading(true);
+              try {
+                if (!credentialResponse.credential) {
+                  throw new Error('Google token alınamadı');
+                }
+                await handleGoogleAuth(credentialResponse.credential);
+                router.push('/my-bookings');
+              } catch (err) {
+                setError('Google ile kayıt başarısız oldu. Lütfen tekrar deneyin.');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onError={() => {
+              setError('Google kimlik doğrulama sırasında bir hata oluştu.');
+            }}
+          />
 
           <Typography sx={{ mt: 3, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
             Zaten hesabınız var mı?{" "}

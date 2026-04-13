@@ -57,7 +57,7 @@ export function CorporateFooter() {
                   letterSpacing: "-0.02em",
                 }}
               >
-                BİLETİM A.Ş.
+                Near East Way
               </Typography>
             </Box>
             <Typography
@@ -68,7 +68,7 @@ export function CorporateFooter() {
                 maxWidth: 280,
               }}
             >
-              Türkiye&apos;nin öncü kurumsal otobüs seyahat platformu. Güven, konfor ve profesyonellik.
+              Kıbrıs&apos;nin öncü kurumsal otobüs seyahat platformu. Güven, konfor ve profesyonellik.
             </Typography>
             <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -80,7 +80,7 @@ export function CorporateFooter() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <EmailOutlinedIcon sx={{ fontSize: 16, color: "#D4AF37" }} />
                 <Typography sx={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.55)" }}>
-                  info@biletim-as.com.tr
+                  info@neareastway.com.tr
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
@@ -145,10 +145,10 @@ export function CorporateFooter() {
           }}
         >
           <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)" }}>
-            © {new Date().getFullYear()} Biletim A.Ş. — Tüm hakları saklıdır.
+            © {new Date().getFullYear()}Near East Way — Tüm hakları saklıdır.
           </Typography>
           <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)" }}>
-            Türkiye&apos;de üretilmiş ve barındırılmaktadır.
+            Kıbrıs&apos;da üretilmiş ve barındırılmaktadır.
           </Typography>
         </Box>
       </Container>
