@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
   Container,
+  MenuItem,
   Paper,
   TextField,
   Typography,
@@ -19,6 +19,7 @@ import { CorporateBanner } from "@/components/corporate-banner";
 import { CorporateFooter } from "@/components/corporate-footer";
 import UserNavbar from "@/components/user-navbar";
 import { apiGet, apiRequest } from "../../lib/api";
+import { CYPRUS_CITIES } from "../../lib/cities";
 import { getStoredUser, setStoredUser } from "../../lib/session";
 import { paperHoverSx } from "../../lib/ui";
 
@@ -41,14 +42,38 @@ type Trip = {
 
 type Seat = {
   seatNumber: string;
-  status: "available" | "booked";
+  status: "available" | "booked" | "held";
 };
 
 type BookingResponse = {
   ok: boolean;
   bookingCode?: string;
+  bookingCodes?: string[];
   message?: string;
 };
+
+type SeatHoldResponse = {
+  ok: boolean;
+  message?: string;
+  expiresAt?: number;
+};
+
+const SEAT_HOLDER_KEY = "seat_holder_id";
+
+function getSeatHolderId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const stored = window.localStorage.getItem(SEAT_HOLDER_KEY);
+  if (stored) {
+    return stored;
+  }
+
+  const nextId = `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(SEAT_HOLDER_KEY, nextId);
+  return nextId;
+}
 
 function formatDuration(minutes: number) {
   const h = Math.floor(minutes / 60);
@@ -69,6 +94,13 @@ function getAisleAfter(layout?: "2+2" | "2+1" | "1+1") {
 function splitSeatNumber(seatNumber: string) {
   const [, letter, row] = /^([A-Z]+)(\d+)$/.exec(seatNumber) ?? [];
   return { letter: letter ?? "", row: Number(row ?? 0) };
+}
+
+function formatHoldCountdown(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 export default function SearchBusesPage() {
@@ -95,8 +127,8 @@ function SearchBusesContent() {
   const searchParams = useSearchParams();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [from, setFrom] = useState("İstanbul");
-  const [to, setTo] = useState("Ankara");
+  const [from, setFrom] = useState<string>(CYPRUS_CITIES[0]);
+  const [to, setTo] = useState<string>(CYPRUS_CITIES[1]);
   const [date, setDate] = useState(today);
 
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -105,16 +137,38 @@ function SearchBusesContent() {
 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
-  const [selectedSeat, setSelectedSeat] = useState("");
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [selectedSeatHoldExpiresAtBySeat, setSelectedSeatHoldExpiresAtBySeat] = useState<Record<string, number>>({});
+  const [clockTick, setClockTick] = useState(Date.now());
   const [bookingInfo, setBookingInfo] = useState("");
+  const [holderId, setHolderId] = useState("");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const loadSeats = useCallback(async (tripId: string) => {
+    const res = await apiGet<{ found: boolean; seats: Seat[] }>(`/trips/${tripId}/seats`);
+    setSeats(res.found ? res.seats : []);
+  }, []);
+
+  const releaseSelectedSeat = useCallback(async (tripId: string, seatNumber: string) => {
+    try {
+      await apiRequest<SeatHoldResponse>(
+        `/trips/${tripId}/seats/${encodeURIComponent(seatNumber)}/hold`,
+        "DELETE",
+        { holderId },
+      );
+    } catch {
+      // Ignore release errors for expired or already released holds.
+    }
+  }, [holderId]);
+
   useEffect(() => {
-    setFrom(searchParams.get("from") ?? "İstanbul");
-    setTo(searchParams.get("to") ?? "Ankara");
+    setHolderId(getSeatHolderId());
+    setFrom(searchParams.get("from") ?? CYPRUS_CITIES[0]);
+    setTo(searchParams.get("to") ?? CYPRUS_CITIES[1]);
     setDate(searchParams.get("date") ?? today);
   }, [searchParams, today]);
 
@@ -151,20 +205,84 @@ function SearchBusesContent() {
   }
 
   async function onSelectTrip(trip: Trip) {
+    if (selectedTrip?.id && selectedSeats.length && holderId) {
+      await Promise.all(selectedSeats.map((seatNumber) => releaseSelectedSeat(selectedTrip.id, seatNumber)));
+    }
+
     setSelectedTrip(trip);
-    setSelectedSeat("");
+    setSelectedSeats([]);
+    setSelectedSeatHoldExpiresAtBySeat({});
     setBookingInfo("");
-    const res = await apiGet<{ found: boolean; seats: Seat[] }>(`/trips/${trip.id}/seats`);
-    setSeats(res.found ? res.seats : []);
+    await loadSeats(trip.id);
+  }
+
+  async function onSelectSeat(seat: Seat) {
+    if (!selectedTrip) {
+      return;
+    }
+    if (!holderId) {
+      setBookingInfo("Koltuk kilitlemek için oturum bilgisi oluşturulamadı.");
+      return;
+    }
+
+    if (seat.status === "booked") {
+      return;
+    }
+
+    const isAlreadySelected = selectedSeats.includes(seat.seatNumber);
+
+    if (isAlreadySelected) {
+      await releaseSelectedSeat(selectedTrip.id, seat.seatNumber);
+      setSelectedSeats((current) => current.filter((seatNumber) => seatNumber !== seat.seatNumber));
+      setSelectedSeatHoldExpiresAtBySeat((current) => {
+        const next = { ...current };
+        delete next[seat.seatNumber];
+        return next;
+      });
+      setBookingInfo("");
+      await loadSeats(selectedTrip.id);
+      return;
+    }
+
+    try {
+      const holdResult = await apiRequest<SeatHoldResponse>(
+        `/trips/${selectedTrip.id}/seats/${encodeURIComponent(seat.seatNumber)}/hold`,
+        "POST",
+        { holderId },
+      );
+
+      if (!holdResult.ok) {
+        setBookingInfo(holdResult.message ?? "Koltuk secimi basarisiz.");
+        await loadSeats(selectedTrip.id);
+        return;
+      }
+
+      setSelectedSeats((current) => [...current, seat.seatNumber]);
+      setSelectedSeatHoldExpiresAtBySeat((current) => ({
+        ...current,
+        [seat.seatNumber]: holdResult.expiresAt ?? Date.now() + 120000,
+      }));
+      setBookingInfo("");
+      await loadSeats(selectedTrip.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Koltuk secimi basarisiz.";
+      setBookingInfo(message);
+      await loadSeats(selectedTrip.id);
+    }
   }
 
   async function onBookSeat() {
-    if (!isAuthenticated) {
-      setBookingInfo("Bilet satın almak için önce hesabınıza giriş yapın.");
+    if (!holderId) {
+      setBookingInfo("Rezervasyon için oturum bilgisi oluşturulamadı.");
       return;
     }
-    if (!selectedTrip || !selectedSeat || !name.trim() || !email.trim()) {
-      setBookingInfo("Yolcu bilgisi, sefer ve koltuk seçimi zorunludur.");
+    const normalizedPhone = phone.replace(/\s+/g, "").trim();
+    if (!selectedTrip || !selectedSeats.length || !name.trim() || !email.trim() || !normalizedPhone) {
+      setBookingInfo("Yolcu bilgisi, sefer ve en az bir koltuk seçimi zorunludur.");
+      return;
+    }
+    if (!/^\+?[0-9]{10,15}$/.test(normalizedPhone)) {
+      setBookingInfo("Telefon numarası geçerli olmalı (10-15 rakam). Örn: 905331112233");
       return;
     }
     try {
@@ -172,19 +290,27 @@ function SearchBusesContent() {
         tripId: selectedTrip.id,
         passengerName: name,
         passengerEmail: email,
-        seatNumber: selectedSeat,
+        passengerPhone: normalizedPhone,
+        holderId,
+        seatNumbers: selectedSeats,
+        passengers: selectedSeats.length,
         travelDate: date,
       });
       if (result.ok) {
         setStoredUser(name, email);
         setIsAuthenticated(true);
-        setBookingInfo(`Rezervasyon tamamlandı. Kod: ${result.bookingCode}`);
+        setBookingInfo(
+          `Rezervasyon tamamlandı. Kod: ${result.bookingCodes?.join(", ") ?? result.bookingCode ?? "-"}`,
+        );
+        setSelectedSeats([]);
+        setSelectedSeatHoldExpiresAtBySeat({});
         await onSelectTrip(selectedTrip);
       } else {
         setBookingInfo(result.message ?? "Rezervasyon oluşturulamadı.");
       }
-    } catch {
-      setBookingInfo("İstek başarısız oldu. Lütfen tekrar deneyin.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "İstek başarısız oldu. Lütfen tekrar deneyin.";
+      setBookingInfo(message);
     }
   }
 
@@ -199,6 +325,86 @@ function SearchBusesContent() {
       return seatLetters.map((letter) => seats.find((s) => s.seatNumber === `${letter}${rowNo}`) ?? null);
     });
   }, [seatLetters, seats]);
+
+  const selectedSeatHoldRemainingMs = useMemo(() => {
+    const expiries = Object.values(selectedSeatHoldExpiresAtBySeat);
+    if (!expiries.length) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(...expiries) - clockTick);
+  }, [clockTick, selectedSeatHoldExpiresAtBySeat]);
+
+  useEffect(() => {
+    if (!Object.keys(selectedSeatHoldExpiresAtBySeat).length) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setClockTick(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [selectedSeatHoldExpiresAtBySeat]);
+
+  useEffect(() => {
+    if (!selectedTrip?.id || !selectedSeats.length || !holderId || !Object.keys(selectedSeatHoldExpiresAtBySeat).length) {
+      return;
+    }
+
+    if (selectedSeatHoldRemainingMs > 0) {
+      return;
+    }
+
+    void Promise.all(selectedSeats.map((seatNumber) => releaseSelectedSeat(selectedTrip.id, seatNumber))).finally(() => {
+      setSelectedSeats([]);
+      setSelectedSeatHoldExpiresAtBySeat({});
+      setBookingInfo("Koltuk tutma süresi doldu.");
+      void loadSeats(selectedTrip.id);
+    });
+  }, [
+    releaseSelectedSeat,
+    loadSeats,
+    holderId,
+    selectedSeats,
+    selectedSeatHoldExpiresAtBySeat,
+    selectedSeatHoldRemainingMs,
+    selectedTrip,
+  ]);
+
+  useEffect(() => {
+    if (!selectedTrip) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void loadSeats(selectedTrip.id);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [loadSeats, selectedTrip]);
+
+  useEffect(() => {
+    return () => {
+      if (!selectedTrip?.id || !selectedSeats.length || !holderId) {
+        return;
+      }
+
+      void Promise.all(
+        selectedSeats.map((seatNumber) =>
+          apiRequest<SeatHoldResponse>(
+            `/trips/${selectedTrip.id}/seats/${encodeURIComponent(seatNumber)}/hold`,
+            "DELETE",
+            { holderId },
+          ),
+        ),
+      );
+    };
+  }, [holderId, selectedSeats, selectedTrip]);
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
@@ -222,14 +428,28 @@ function SearchBusesContent() {
               value={from}
               onChange={(e) => setFrom(e.target.value)}
               fullWidth
-            />
+              select
+            >
+              {CYPRUS_CITIES.map((city) => (
+                <MenuItem key={city} value={city}>
+                  {city}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               size="small"
               label="Nereye"
               value={to}
               onChange={(e) => setTo(e.target.value)}
               fullWidth
-            />
+              select
+            >
+              {CYPRUS_CITIES.map((city) => (
+                <MenuItem key={city} value={city}>
+                  {city}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               size="small"
               label="Tarih"
@@ -394,7 +614,22 @@ function SearchBusesContent() {
                     <Box sx={{ width: 12, height: 12, borderRadius: "2px", bgcolor: "#e2e8f0" }} />
                     Dolu
                   </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: "2px", bgcolor: "#1e3a8a" }} />
+                    Baska kullanici secti
+                  </Box>
                 </Box>
+
+                {selectedSeats.length > 0 && (
+                  <Box sx={{ mb: 2, p: 1.25, borderRadius: 1.5, bgcolor: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                    <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "#1d4ed8" }}>
+                      Seçili koltuklar: {selectedSeats.join(", ")}
+                    </Typography>
+                    <Typography sx={{ fontSize: "0.78rem", color: "#1d4ed8", mt: 0.25 }}>
+                      Kilit süresi: {formatHoldCountdown(selectedSeatHoldRemainingMs)}
+                    </Typography>
+                  </Box>
+                )}
 
                 <Box sx={{ p: 2, bgcolor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 1.5, mb: 2 }}>
                   <Box
@@ -421,8 +656,11 @@ function SearchBusesContent() {
                           <Box key={`seat-${rowIndex}-${colIndex}`} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                             {seat ? (
                               <Button
-                                disabled={seat.status === "booked"}
-                                onClick={() => setSelectedSeat(seat.seatNumber)}
+                                disabled={
+                                  seat.status === "booked" ||
+                                  (seat.status === "held" && !selectedSeats.includes(seat.seatNumber))
+                                }
+                                onClick={() => void onSelectSeat(seat)}
                                 variant="outlined"
                                 sx={{
                                   minWidth: 0,
@@ -436,26 +674,34 @@ function SearchBusesContent() {
                                   borderColor:
                                     seat.status === "booked"
                                       ? "#e2e8f0"
-                                      : selectedSeat === seat.seatNumber
+                                      : seat.status === "held" && !selectedSeats.includes(seat.seatNumber)
+                                      ? "#1e3a8a"
+                                      : selectedSeats.includes(seat.seatNumber)
                                       ? "#002D62"
                                       : "#cbd5e1",
                                   bgcolor:
                                     seat.status === "booked"
                                       ? "#e2e8f0"
-                                      : selectedSeat === seat.seatNumber
+                                      : seat.status === "held" && !selectedSeats.includes(seat.seatNumber)
+                                      ? "#1e3a8a"
+                                      : selectedSeats.includes(seat.seatNumber)
                                       ? "#002D62"
                                       : "#f1f5f9",
                                   color:
                                     seat.status === "booked"
                                       ? "#94a3b8"
-                                      : selectedSeat === seat.seatNumber
+                                      : seat.status === "held" && !selectedSeats.includes(seat.seatNumber)
+                                      ? "#ffffff"
+                                      : selectedSeats.includes(seat.seatNumber)
                                       ? "#ffffff"
                                       : "#0f172a",
                                   "&:hover": {
                                     bgcolor:
                                       seat.status === "booked"
                                         ? "#e2e8f0"
-                                        : selectedSeat === seat.seatNumber
+                                        : seat.status === "held" && !selectedSeats.includes(seat.seatNumber)
+                                        ? "#1e3a8a"
+                                        : selectedSeats.includes(seat.seatNumber)
                                         ? "#001f44"
                                         : "#e2e8f0",
                                   },
@@ -484,7 +730,6 @@ function SearchBusesContent() {
                 label="Ad Soyad"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={!isAuthenticated}
                 fullWidth
               />
               <TextField
@@ -493,23 +738,26 @@ function SearchBusesContent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={!isAuthenticated}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="Telefon"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="905331112233"
                 fullWidth
               />
               {!isAuthenticated && (
                 <Box sx={{ p: 1.5, bgcolor: "#fffbeb", border: "1px solid #fde68a", borderRadius: 1 }}>
                   <Typography sx={{ fontSize: "0.78rem", color: "#92400e" }}>
-                    Rezervasyon için{" "}
-                    <Box component={Link} href="/login" sx={{ fontWeight: 700, color: "#002D62", textDecoration: "none" }}>
-                      giriş yapın
-                    </Box>
-                    .
+                    Giriş yapmadan da rezervasyon oluşturabilirsiniz. Giriş yaparsanız bilgilerinizi otomatik doldururuz.
                   </Typography>
                 </Box>
               )}
               <Button
                 onClick={() => void onBookSeat()}
-                disabled={!isAuthenticated || !selectedSeat}
+                disabled={!selectedSeats.length}
                 variant="contained"
                 fullWidth
                 sx={{

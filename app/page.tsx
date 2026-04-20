@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import {
   Box,
   Button,
   Container,
+  MenuItem,
   Paper,
   TextField,
   Typography,
@@ -23,14 +24,7 @@ import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOu
 
 import { CorporateFooter } from "@/components/corporate-footer";
 import UserNavbar from "@/components/user-navbar";
-import { apiGet } from "../lib/api";
-
-type RouteSummary = {
-  from: string;
-  to: string;
-  basePrice: number;
-  durationMinutes: number;
-};
+import { CYPRUS_CITIES } from "../lib/cities";
 
 const BENEFITS = [
   {
@@ -51,15 +45,12 @@ const BENEFITS = [
 ];
 
 const POPULAR_ROUTES = [
-  { from: "İstanbul", to: "Ankara" },
-  { from: "Ankara", to: "İstanbul" },
-  { from: "İzmir", to: "İstanbul" },
-  { from: "İstanbul", to: "İzmir" },
-  { from: "Antalya", to: "Ankara" },
-  { from: "Bursa", to: "İstanbul" },
-  { from: "Adana", to: "İstanbul" },
-  { from: "Konya", to: "Ankara" },
-  { from: "Trabzon", to: "Ankara" },
+  { from: "Lefkoşa", to: "Mağusa" },
+  { from: "Lefkoşa", to: "Girne" },
+  { from: "Lefkoşa", to: "Lefke" },
+  { from: "Lefkoşa", to: "Güzelyurt" },
+  { from: "Lefkoşa", to: "Gemikonağı" },
+  { from: "Lefkoşa", to: "İskele" },
 ];
 
 export default function HomePage() {
@@ -71,16 +62,9 @@ export default function HomePage() {
     return d.toISOString().slice(0, 10);
   };
 
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState<string>(CYPRUS_CITIES[0]);
+  const [to, setTo] = useState<string>(CYPRUS_CITIES[1]);
   const [date, setDate] = useState(getToday());
-  const [, setRouteCards] = useState<RouteSummary[]>([]);
-
-  useEffect(() => {
-    apiGet<RouteSummary[]>("/routes")
-      .then((data) => setRouteCards(data))
-      .catch(() => setRouteCards([]));
-  }, []);
 
   function onSearch(event: FormEvent) {
     event.preventDefault();
@@ -155,7 +139,7 @@ export default function HomePage() {
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}
                   fullWidth
-                  placeholder="Kalkış şehri"
+                  select
                   slotProps={{
                     input: {
                       startAdornment: (
@@ -165,7 +149,13 @@ export default function HomePage() {
                       ),
                     },
                   }}
-                />
+                >
+                  {CYPRUS_CITIES.map((city) => (
+                    <MenuItem key={city} value={city}>
+                      {city}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
                 <IconButton
                   onClick={handleSwap}
@@ -187,7 +177,7 @@ export default function HomePage() {
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
                   fullWidth
-                  placeholder="Varış şehri"
+                  select
                   slotProps={{
                     input: {
                       startAdornment: (
@@ -197,7 +187,13 @@ export default function HomePage() {
                       ),
                     },
                   }}
-                />
+                >
+                  {CYPRUS_CITIES.map((city) => (
+                    <MenuItem key={city} value={city}>
+                      {city}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
                 <Box sx={{ display: "flex", flexDirection: "column", minWidth: { md: 220 } }}>
                     <>

@@ -11,6 +11,7 @@ const menuItems: SidebarItem[] = [
   { label: "Ana Sayfa", href: "/admin", key: "overview" },
   { label: "Seferler", href: "/admin#trips", key: "trips" },
   { label: "Firma Başvuruları", href: "/admin#requests", key: "requests" },
+  { label: "Firmalar", href: "/admin#companies", key: "companies" },
   { label: "Kullanıcı Yönetimi", href: "/admin/users", key: "users" },
   { label: "Raporlar", href: "/admin#reports", key: "reports" },
   { label: "Ayarlar", href: "/admin#settings", key: "settings" },
@@ -41,24 +42,24 @@ export default function AdminSettingsPage() {
   const [companyMessage, setCompanyMessage] = useState("");
   const [companyLoading, setCompanyLoading] = useState(false);
 
+  async function loadCompanies() {
+    const token = localStorage.getItem("admin_token") ?? "";
+    try {
+      const response = await apiGet<{ ok: boolean; companies?: Array<{ id: string; companyName: string; email: string; status: string }> }>(
+        `/admin/companies?token=${encodeURIComponent(token)}`,
+      );
+      if (response.ok && response.companies) {
+        setCompanies(response.companies);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     setRole(readStoredRole());
     setUsername(localStorage.getItem("admin_username") ?? "admin");
     setSessionStatus(localStorage.getItem("admin_token") ? "Aktif" : "Pasif");
-
-    async function loadCompanies() {
-      const token = localStorage.getItem("admin_token") ?? "";
-      try {
-        const response = await apiGet<{ ok: boolean; companies?: Array<{ id: string; companyName: string; email: string; status: string }> }>(
-          `/admin/companies?token=${encodeURIComponent(token)}`,
-        );
-        if (response.ok && response.companies) {
-          setCompanies(response.companies);
-        }
-      } catch {
-        // ignore
-      }
-    }
 
     void loadCompanies();
   }, []);

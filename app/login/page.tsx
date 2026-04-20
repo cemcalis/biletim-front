@@ -10,7 +10,9 @@ import UserNavbar from "@/components/user-navbar";
 import { CorporateFooter } from "@/components/corporate-footer";
 import { setStoredUser } from "@/lib/session";
 import { apiRequest } from "@/lib/api";
+import { hasGoogleClientId } from "@/lib/google-config";
 import { handleGoogleAuth } from "@/lib/google-auth";
+
 
 interface LoginResponse {
   access_token: string;
@@ -113,26 +115,28 @@ export default function LoginPage() {
 
           <Divider sx={{ my: 3 }} />
 
-          <GoogleLogin
-            onSuccess={async (credentialResponse: CredentialResponse) => {
-              setError("");
-              setLoading(true);
-              try {
-                if (!credentialResponse.credential) {
-                  throw new Error('Google token alınamadı');
+          {hasGoogleClientId() ? (
+            <GoogleLogin
+              onSuccess={async (credentialResponse: CredentialResponse) => {
+                setError("");
+                setLoading(true);
+                try {
+                  if (!credentialResponse.credential) {
+                    throw new Error("Google token alınamadı");
+                  }
+                  await handleGoogleAuth(credentialResponse.credential);
+                  router.push("/my-bookings");
+                } catch {
+                  setError("Google ile giriş başarısız oldu. Lütfen tekrar deneyin.");
+                } finally {
+                  setLoading(false);
                 }
-                await handleGoogleAuth(credentialResponse.credential);
-                router.push('/my-bookings');
-              } catch (err) {
-                setError('Google ile giriş başarısız oldu. Lütfen tekrar deneyin.');
-              } finally {
-                setLoading(false);
-              }
-            }}
-            onError={() => {
-              setError('Google kimlik doğrulama sırasında bir hata oluştu.');
-            }}
-          />
+              }}
+              onError={() => {
+                setError("Google kimlik doğrulama sırasında bir hata oluştu.");
+              }}
+            />
+          ) : null}
 
           <Typography sx={{ mt: 3, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
             Şifrenizi mi unuttunuz?{" "}
@@ -145,6 +149,13 @@ export default function LoginPage() {
             Hesabınız yok mu?{" "}
             <Box component={Link} href="/register" sx={{ color: "#002D62", fontWeight: 700, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
               Kayıt Olun
+            </Box>
+          </Typography>
+
+          <Typography sx={{ mt: 1, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
+            Firmanız için iş ortağı başvurusu mu yapmak istiyorsunuz?{" "}
+            <Box component={Link} href="/company/register" sx={{ color: "#002D62", fontWeight: 700, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
+              Firma Başvurusu
             </Box>
           </Typography>
         </Paper>

@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Button, Container, Paper, TextField, Typography } from "@mui/material";
 import UserNavbar from "@/components/user-navbar";
 import { CorporateFooter } from "@/components/corporate-footer";
 import { apiRequest } from "@/lib/api";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const router = useRouter();
@@ -116,5 +116,13 @@ export default function ResetPasswordPage() {
       </Container>
       <CorporateFooter />
     </Box>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<Box sx={{ minHeight: "100vh", bgcolor: "#f8f9fa" }} />}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

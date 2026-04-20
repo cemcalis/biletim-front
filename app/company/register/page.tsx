@@ -2,57 +2,62 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Box, Button, Container, Divider, Paper, TextField, Typography } from "@mui/material";
-import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
-import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
+import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import UserNavbar from "@/components/user-navbar";
 import { CorporateFooter } from "@/components/corporate-footer";
-import { setStoredUser } from "@/lib/session";
 import { apiRequest } from "@/lib/api";
-import { hasGoogleClientId } from "@/lib/google-config";
-import { handleGoogleAuth } from "@/lib/google-auth";
 
-interface RegisterResponse {
-  access_token: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
+type CompanyRegisterResponse = {
+  ok: boolean;
+  message?: string;
+};
 
-export default function RegisterPage() {
-  const router = useRouter();
-  const [name, setName] = useState("");
+export default function CompanyRegisterPage() {
+  const [companyName, setCompanyName] = useState("");
+  const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError("Lütfen tüm alanları doldurunuz.");
+    setSuccess("");
+
+    if (!companyName.trim() || !contactName.trim() || !email.trim() || !password.trim()) {
+      setError("Lütfen tüm alanları doldurun.");
       return;
     }
-    if (password.length < 6) {
+
+    if (password.trim().length < 6) {
       setError("Şifre en az 6 karakter olmalıdır.");
       return;
     }
-    if (password !== confirmPassword) {
-      setError("Şifreler eşleşmiyor.");
-      return;
-    }
+
     setLoading(true);
     try {
-      const response = await apiRequest<RegisterResponse>("/auth/register", "POST", { name, email, password });
-      setStoredUser(response.user.name, response.user.email, response.access_token);
-      router.push("/my-bookings");
+      const response = await apiRequest<CompanyRegisterResponse>("/company/register", "POST", {
+        companyName,
+        contactName,
+        email,
+        password,
+      });
+
+      if (!response.ok) {
+        setError(response.message ?? "Başvuru oluşturulamadı.");
+        return;
+      }
+
+      setSuccess(response.message ?? "Başvurunuz alındı. Admin onayı sonrası giriş yapabilirsiniz.");
+      setCompanyName("");
+      setContactName("");
+      setEmail("");
+      setPassword("");
     } catch {
-      setError("Kayıt işlemi başarısız. Bilgilerinizi kontrol edin.");
+      setError("Başvuru sırasında bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setLoading(false);
     }
@@ -61,18 +66,19 @@ export default function RegisterPage() {
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
       <UserNavbar active="home" />
+
       <Container maxWidth="sm" sx={{ py: 8, flex: 1 }}>
         <Paper elevation={0} sx={{ p: { xs: 3, sm: 5 }, border: "1px solid #e2e8f0", borderRadius: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
             <Box sx={{ width: 36, height: 36, bgcolor: "#002D62", borderRadius: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <PersonAddOutlinedIcon sx={{ color: "#ffffff", fontSize: 18 }} />
+              <BusinessRoundedIcon sx={{ color: "#ffffff", fontSize: 18 }} />
             </Box>
             <Box>
               <Typography sx={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
-                Yeni Hesap Oluşturun
+                Firma Başvurusu
               </Typography>
               <Typography sx={{ fontSize: "0.82rem", color: "#64748b" }}>
-                Near East Way
+                Near East Way İş Ortağı Kaydı
               </Typography>
             </Box>
           </Box>
@@ -85,19 +91,32 @@ export default function RegisterPage() {
                 <Typography sx={{ fontSize: "0.85rem", color: "#dc2626" }}>{error}</Typography>
               </Box>
             )}
+            {success && (
+              <Box sx={{ p: 1.5, bgcolor: "#ecfdf5", border: "1px solid #86efac", borderRadius: 1 }}>
+                <Typography sx={{ fontSize: "0.85rem", color: "#166534" }}>{success}</Typography>
+              </Box>
+            )}
+
             <TextField
-              label="Ad Soyad"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              label="Firma Adı"
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
               disabled={loading}
               fullWidth
               autoFocus
             />
             <TextField
-              label="E-posta Adresi"
+              label="Yetkili Ad Soyad"
+              value={contactName}
+              onChange={(event) => setContactName(event.target.value)}
+              disabled={loading}
+              fullWidth
+            />
+            <TextField
+              label="E-posta"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               disabled={loading}
               fullWidth
               autoComplete="email"
@@ -106,19 +125,12 @@ export default function RegisterPage() {
               label="Şifre"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               disabled={loading}
               fullWidth
               autoComplete="new-password"
             />
-            <TextField
-              label="Şifre Tekrar"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={loading}
-              fullWidth
-            />
+
             <Button
               type="submit"
               variant="contained"
@@ -133,43 +145,19 @@ export default function RegisterPage() {
                 fontSize: "0.95rem",
               }}
             >
-              {loading ? "Kaydediliyor..." : "Kayıt Ol"}
+              {loading ? "Başvuru Gönderiliyor..." : "Başvuruyu Gönder"}
             </Button>
           </Box>
 
-          <Divider sx={{ my: 3 }} />
-
-          {hasGoogleClientId() ? (
-            <GoogleLogin
-              onSuccess={async (credentialResponse: CredentialResponse) => {
-                setError("");
-                setLoading(true);
-                try {
-                  if (!credentialResponse.credential) {
-                    throw new Error("Google token alınamadı");
-                  }
-                  await handleGoogleAuth(credentialResponse.credential);
-                  router.push("/my-bookings");
-                } catch {
-                  setError("Google ile kayıt başarısız oldu. Lütfen tekrar deneyin.");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              onError={() => {
-                setError("Google kimlik doğrulama sırasında bir hata oluştu.");
-              }}
-            />
-          ) : null}
-
           <Typography sx={{ mt: 3, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
-            Zaten hesabınız var mı?{" "}
-            <Box component={Link} href="/login" sx={{ color: "#002D62", fontWeight: 700, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
-              Giriş Yapın
+            Zaten onaylı firma hesabınız var mı?{" "}
+            <Box component={Link} href="/admin" sx={{ color: "#002D62", fontWeight: 700, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
+              Yönetim Girişi
             </Box>
           </Typography>
         </Paper>
       </Container>
+
       <CorporateFooter />
     </Box>
   );

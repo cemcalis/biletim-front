@@ -35,7 +35,19 @@ export async function apiRequest<T>(
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
-    throw new Error(`${method} ${path} failed`);
+    const fallback = `${method} ${path} failed`;
+    let errorMessage = fallback;
+    try {
+      const payload = (await response.json()) as { message?: string | string[] };
+      if (Array.isArray(payload.message) && payload.message.length > 0) {
+        errorMessage = payload.message.join(", ");
+      } else if (typeof payload.message === "string" && payload.message.trim()) {
+        errorMessage = payload.message;
+      }
+    } catch {
+      // Ignore JSON parse errors and use fallback message.
+    }
+    throw new Error(errorMessage);
   }
   return (await response.json()) as T;
 }

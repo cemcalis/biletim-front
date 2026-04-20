@@ -59,14 +59,16 @@ export function CollapsibleSidebar({
     overview: DashboardRoundedIcon,
     trips: DirectionsBusFilledRoundedIcon,
     requests: BusinessRoundedIcon,
+    companies: BusinessRoundedIcon,
     users: GroupRoundedIcon,
     reports: BarChartRoundedIcon,
     settings: SettingsRoundedIcon,
+    vehicles: DirectionsBusFilledRoundedIcon,
   };
 
-  const discoverItems = items.filter((item) => ["overview", "trips", "requests"].includes(item.key));
-  const managementItems = items.filter((item) => ["users", "reports", "settings"].includes(item.key));
-  const remainingItems = items.filter((item) => !["overview", "trips", "requests", "users", "reports", "settings"].includes(item.key));
+  const discoverItems = items.filter((item) => ["overview", "trips", "requests", "companies"].includes(item.key));
+  const managementItems = items.filter((item) => ["vehicles", "users", "reports", "settings"].includes(item.key));
+  const remainingItems = items.filter((item) => !["overview", "trips", "requests", "companies", "vehicles", "users", "reports", "settings"].includes(item.key));
 
   const [open, setOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);

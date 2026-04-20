@@ -65,6 +65,7 @@ import {
   DownloadOutlined as DownloadIcon,
   TrendingUpOutlined as TrendingUpIcon,
   TrendingDownOutlined as TrendingDownIcon,
+  MapOutlined as MapOutlinedIcon,
   MoreVert as MoreVertIcon,
   EditOutlined as EditIcon,
   DeleteOutlineOutlined as DeleteIcon,
@@ -88,6 +89,9 @@ type AdminOverviewResponse = {
     busRoutes: number;
     revenue: number;
   };
+  recentBookings?: AdminTrip[];
+  revenueTrend?: Array<{ month: string; value: number }>;
+  popularRoutes?: Array<{ label: string; value: number; color: string }>;
 };
 
 type CompanyRequest = {
@@ -96,6 +100,65 @@ type CompanyRequest = {
   contactName: string;
   email: string;
   createdAt: string;
+};
+
+type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  isCompany: boolean;
+  createdAt: string;
+};
+
+type AdminUsersResponse = {
+  ok: boolean;
+  users?: AdminUser[];
+  message?: string;
+};
+
+type RevenueReportResponse = {
+  ok: boolean;
+  summary?: {
+    totalRevenue: number;
+    totalBookings: number;
+    averageTicket: number;
+  };
+  byPeriod?: Array<{ label?: string; month?: string; value: number }>;
+  message?: string;
+};
+
+type RouteReportItem = {
+  route: string;
+  bookings: number;
+  revenue: number;
+  passengers: number;
+};
+
+type CompanyReportItem = {
+  companyId: string;
+  name: string;
+  trips: number;
+  bookings: number;
+  passengers: number;
+  revenue: number;
+  vehicleCount: number;
+  routes: Array<{
+    route: string;
+    price: number;
+    bookings: number;
+    passengers: number;
+    vehicle: string;
+  }>;
+};
+
+type AdminCompany = {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  status: string;
+  createdAt: string;
+  approvedAt?: string;
 };
 
 type AdminTrip = {
@@ -110,9 +173,27 @@ type AdminTrip = {
   isActive?: boolean;
 };
 
+type AdminRoute = {
+  from: string;
+  to: string;
+  basePrice: number;
+  durationMinutes: number;
+};
+
+type AdminVehicle = {
+  id: string;
+  companyId: string;
+  plate: string;
+  busType: string;
+  seatsTotal: number;
+  seatLayout: "2+2" | "2+1" | "1+1";
+  seatRows: number;
+  createdAt: string;
+};
+
 type AdminRole = "super-admin" | "company-admin";
 type FilterWindow = "all" | "today" | "two-days" | "week";
-type AdminSection = "overview" | "trips" | "requests" | "users" | "reports" | "settings";
+type AdminSection = "overview" | "trips" | "requests" | "users" | "reports" | "settings" | "route-management" | "companies" | "vehicles";
 
 const ROLE_STORAGE_KEY = "admin_role";
 const DRAWER_WIDTH = 250;
@@ -120,21 +201,24 @@ const DRAWER_WIDTH = 250;
 const roleConfig: Record<AdminRole, { label: string; allowedSections: AdminSection[] }> = {
   "super-admin": {
     label: "Sistem Yöneticisi",
-    allowedSections: ["overview", "trips", "requests", "users", "reports", "settings"],
+    allowedSections: ["overview", "requests", "users", "reports", "companies", "settings"],
   },
   "company-admin": {
     label: "Firma Yetkilisi",
-    allowedSections: ["overview", "trips", "settings"],
+    allowedSections: ["overview", "trips", "route-management", "vehicles", "settings"],
   },
 };
 
 const sectionConfig: Array<{ key: AdminSection; label: string; icon: React.ReactNode }> = [
   { key: "overview", label: "Dashboard", icon: <HomeOutlinedIcon /> },
   { key: "trips", label: "Sefer Yönetimi", icon: <DirectionsBusOutlinedIcon /> },
+  { key: "vehicles", label: "Araç Yönetimi", icon: <VehicleIcon /> },
   { key: "requests", label: "Başvurular", icon: <AssignmentTurnedInOutlinedIcon /> },
+  { key: "companies", label: "Firmalar", icon: <GroupOutlinedIcon /> },
   { key: "users", label: "Kullanıcılar", icon: <GroupOutlinedIcon /> },
   { key: "reports", label: "Raporlar", icon: <QueryStatsOutlinedIcon /> },
   { key: "settings", label: "Ayarlar", icon: <SettingsOutlinedIcon /> },
+  { key: "route-management", label: "Rota Yönetimi", icon: <MapOutlinedIcon /> },
 ];
 
 const roleOptions: Array<{ value: AdminRole; label: string }> = [
@@ -179,6 +263,35 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [trips, setTrips] = useState<AdminTrip[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [revenueReport, setRevenueReport] = useState<RevenueReportResponse | null>(null);
+  const [routeReport, setRouteReport] = useState<RouteReportItem[]>([]);
+  const [companyReport, setCompanyReport] = useState<CompanyReportItem[]>([]);
+  const [companies, setCompanies] = useState<AdminCompany[]>([]);
+  const [vehicles, setVehicles] = useState<AdminVehicle[]>([]);
+  const [routes, setRoutes] = useState<AdminRoute[]>([]);
+  const [routeStatus, setRouteStatus] = useState("");
+  const [companyStatus, setCompanyStatus] = useState("");
+  const [vehicleStatus, setVehicleStatus] = useState("");
+  const [newCompanyValues, setNewCompanyValues] = useState({
+    companyName: "",
+    contactName: "",
+    email: "",
+    password: "",
+  });
+  const [newVehicleValues, setNewVehicleValues] = useState({
+    plate: "",
+    busType: "",
+    seatsTotal: "40",
+    seatLayout: "2+2" as "2+2" | "2+1" | "1+1",
+  });
+  const [newRouteValues, setNewRouteValues] = useState({
+    from: "",
+    to: "",
+    basePrice: "",
+    durationMinutes: "",
+  });
+  const [adminDataLoading, setAdminDataLoading] = useState(true);
   const [newTripOpen, setNewTripOpen] = useState(false);
   const [tripStatus, setTripStatus] = useState("");
   const [newTripValues, setNewTripValues] = useState({
@@ -199,19 +312,36 @@ export default function AdminPage() {
   useEffect(() => {
     if (!token) return;
     async function loadData() {
+      setAdminDataLoading(true);
       try {
-        const [overviewData, tripData] = await Promise.all([
+        const [overviewData, tripData, usersData, revenueData, routesData, routeListData, companiesData, companyStats, vehiclesData] = await Promise.all([
           apiGet<AdminOverviewResponse>("/admin/overview").catch(() => null),
-          apiGet<AdminTrip[]>("/trips").catch(() => []),
+          apiGet<{ ok: boolean; trips?: AdminTrip[] }>(`/admin/trips?token=${encodeURIComponent(token)}`).catch(() => null),
+          apiGet<AdminUsersResponse>(`/admin/users?token=${encodeURIComponent(token)}&page=1&limit=8&sortBy=createdAt&sortOrder=desc`).catch(() => null),
+          apiGet<RevenueReportResponse>(`/admin/reports/revenue?token=${encodeURIComponent(token)}&period=monthly`).catch(() => null),
+          apiGet<{ ok: boolean; routes?: RouteReportItem[] }>(`/admin/reports/routes?token=${encodeURIComponent(token)}`).catch(() => null),
+          apiGet<{ ok: boolean; routes?: AdminRoute[] }>(`/admin/routes?token=${encodeURIComponent(token)}`).catch(() => null),
+          apiGet<{ ok: boolean; companies?: AdminCompany[] }>(`/admin/companies?token=${encodeURIComponent(token)}`).catch(() => null),
+          apiGet<{ ok: boolean; companies?: CompanyReportItem[] }>(`/admin/reports/companies?token=${encodeURIComponent(token)}`).catch(() => null),
+          apiGet<{ ok: boolean; vehicles?: AdminVehicle[] }>(`/admin/vehicles?token=${encodeURIComponent(token)}`).catch(() => null),
         ]);
         if (overviewData) setOverview(overviewData);
-        if (tripData) setTrips(tripData);
+        if (tripData?.ok && tripData.trips) setTrips(tripData.trips);
+        if (usersData?.ok && usersData.users) setAdminUsers(usersData.users);
+        if (revenueData?.ok) setRevenueReport(revenueData);
+        if (routesData?.ok && routesData.routes) setRouteReport(routesData.routes);
+        if (routeListData?.ok && routeListData.routes) setRoutes(routeListData.routes);
+        if (companiesData?.ok && companiesData.companies) setCompanies(companiesData.companies);
+        if (companyStats?.ok && companyStats.companies) setCompanyReport(companyStats.companies);
+        if (vehiclesData?.ok && vehiclesData.vehicles) setVehicles(vehiclesData.vehicles);
         const reqData = await apiGet<{ ok: boolean; requests?: CompanyRequest[] }>(
           `/admin/company-requests?token=${token}`
         ).catch(() => null);
         if (reqData?.ok && reqData.requests) setRequests(reqData.requests);
       } catch (err) {
         console.error(err);
+      } finally {
+        setAdminDataLoading(false);
       }
     }
     loadData();
@@ -229,8 +359,8 @@ export default function AdminPage() {
       localStorage.setItem(ROLE_STORAGE_KEY, result.role ?? role);
       setToken(result.token);
       setRole(result.role ?? role);
-    } catch {
-      setLoginError("Sunucu bağlantı hatası.");
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Sunucu bağlantı hatası.");
     }
   }
 
@@ -241,6 +371,13 @@ export default function AdminPage() {
     setTrips([]);
     setRequests([]);
     setOverview(null);
+    setAdminUsers([]);
+    setRevenueReport(null);
+    setRouteReport([]);
+    setRoutes([]);
+    setCompanyReport([]);
+    setCompanies([]);
+    setVehicles([]);
   }
 
   async function onApprove(companyId: string) {
@@ -264,7 +401,7 @@ export default function AdminPage() {
         {
           token,
           trip: {
-            company: newTripValues.company,
+            ...(newTripValues.company ? { company: newTripValues.company } : {}),
             from: newTripValues.from,
             to: newTripValues.to,
             departureDate: newTripValues.departureDate,
@@ -305,6 +442,183 @@ export default function AdminPage() {
     }
   }
 
+  async function onCreateRoute(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setRouteStatus("");
+
+    if (!newRouteValues.from || !newRouteValues.to || !newRouteValues.basePrice || !newRouteValues.durationMinutes) {
+      setRouteStatus("Lütfen rota için tüm alanları doldurun.");
+      return;
+    }
+
+    const payload = {
+      from: newRouteValues.from.trim(),
+      to: newRouteValues.to.trim(),
+      basePrice: Number(newRouteValues.basePrice),
+      durationMinutes: Number(newRouteValues.durationMinutes),
+    };
+
+    try {
+      const result = await apiRequest<{ ok: boolean; route?: AdminRoute; message?: string }>(
+        "/admin/routes",
+        "POST",
+        { token, route: payload },
+      );
+
+      if (!result.ok) {
+        setRouteStatus(result.message ?? "Rota oluşturulamadı.");
+        return;
+      }
+
+      setRouteStatus("Rota başarıyla eklendi.");
+      if (result.route) {
+        setRoutes((prev) => [...prev, result.route as AdminRoute]);
+      }
+      setNewRouteValues({ from: "", to: "", basePrice: "", durationMinutes: "" });
+    } catch {
+      setRouteStatus("Rota oluşturulurken bir hata oluştu.");
+    }
+  }
+
+  async function onDeleteRoute(routeIndex: number) {
+    const confirmed = window.confirm("Bu rotayı silmek istediğinizden emin misiniz?");
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const result = await apiRequest<{ ok: boolean; message?: string }>(
+        `/admin/routes/${routeIndex}`,
+        "DELETE",
+        { token },
+      );
+
+      if (!result.ok) {
+        setRouteStatus(result.message ?? "Rota silinemedi.");
+        return;
+      }
+
+      setRoutes((prev) => prev.filter((_, idx) => idx !== routeIndex));
+      setRouteStatus("Rota silindi.");
+    } catch {
+      setRouteStatus("Rota silinirken bir hata oluştu.");
+    }
+  }
+
+  async function onCreateCompany(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCompanyStatus("");
+
+    if (!newCompanyValues.companyName || !newCompanyValues.contactName || !newCompanyValues.email) {
+      setCompanyStatus("Firma adı, yetkili ve e-posta zorunludur.");
+      return;
+    }
+
+    try {
+      const result = await apiRequest<{ ok: boolean; company?: AdminCompany; message?: string }>(
+        "/admin/companies",
+        "POST",
+        {
+          token,
+          company: {
+            companyName: newCompanyValues.companyName,
+            contactName: newCompanyValues.contactName,
+            email: newCompanyValues.email,
+            password: newCompanyValues.password || undefined,
+          },
+        },
+      );
+
+      if (!result.ok || !result.company) {
+        setCompanyStatus(result.message ?? "Firma eklenemedi.");
+        return;
+      }
+
+      setCompanies((prev) => [result.company!, ...prev]);
+      setCompanyStatus("Firma başarıyla eklendi.");
+      setNewCompanyValues({ companyName: "", contactName: "", email: "", password: "" });
+    } catch {
+      setCompanyStatus("Firma eklenirken hata oluştu.");
+    }
+  }
+
+  async function onDeleteCompany(companyId: string) {
+    const confirmed = window.confirm("Bu firmayı silmek istediğinizden emin misiniz?");
+    if (!confirmed) return;
+
+    try {
+      const result = await apiRequest<{ ok: boolean; message?: string }>(
+        "/admin/companies/delete",
+        "POST",
+        { token, companyId },
+      );
+
+      if (!result.ok) {
+        setCompanyStatus(result.message ?? "Firma silinemedi.");
+        return;
+      }
+
+      setCompanies((prev) => prev.filter((item) => item.id !== companyId));
+      setCompanyStatus("Firma silindi.");
+    } catch {
+      setCompanyStatus("Firma silinirken hata oluştu.");
+    }
+  }
+
+  async function onCreateVehicle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setVehicleStatus("");
+
+    if (!newVehicleValues.plate || !newVehicleValues.busType || !newVehicleValues.seatsTotal) {
+      setVehicleStatus("Plaka, araç tipi ve koltuk sayısı zorunludur.");
+      return;
+    }
+
+    try {
+      const result = await apiRequest<{ ok: boolean; vehicle?: AdminVehicle; message?: string }>(
+        "/admin/vehicles",
+        "POST",
+        {
+          token,
+          vehicle: {
+            plate: newVehicleValues.plate,
+            busType: newVehicleValues.busType,
+            seatsTotal: Number(newVehicleValues.seatsTotal),
+            seatLayout: newVehicleValues.seatLayout,
+          },
+        },
+      );
+
+      if (!result.ok || !result.vehicle) {
+        setVehicleStatus(result.message ?? "Araç eklenemedi.");
+        return;
+      }
+
+      setVehicles((prev) => [result.vehicle!, ...prev]);
+      setVehicleStatus("Araç başarıyla eklendi.");
+      setNewVehicleValues({ plate: "", busType: "", seatsTotal: "40", seatLayout: "2+2" });
+    } catch {
+      setVehicleStatus("Araç eklenirken hata oluştu.");
+    }
+  }
+
+  async function onDeleteVehicle(vehicleId: string) {
+    const confirmed = window.confirm("Bu aracı silmek istediğinizden emin misiniz?");
+    if (!confirmed) return;
+
+    try {
+      const result = await apiRequest<{ ok: boolean; message?: string }>(`/admin/vehicles/${vehicleId}`, "DELETE", { token });
+      if (!result.ok) {
+        setVehicleStatus(result.message ?? "Araç silinemedi.");
+        return;
+      }
+      setVehicles((prev) => prev.filter((item) => item.id !== vehicleId));
+      setVehicleStatus("Araç silindi.");
+    } catch {
+      setVehicleStatus("Araç silinirken hata oluştu.");
+    }
+  }
+
   const companyOptions = useMemo(() => {
     const companies = Array.from(new Set(trips.map((t) => t.company).filter(Boolean))).sort((a, b) =>
       a.localeCompare(b, "tr")
@@ -330,7 +644,6 @@ export default function AdminPage() {
 
   const visibleMenuItems = sectionConfig.filter((item) => roleConfig[role].allowedSections.includes(item.key));
 
-  // ── LOGIN SCREEN ───────────────────────────────────────────────────────────
   if (!token) {
     return (
       <Box sx={{ minHeight: "100vh", bgcolor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -339,7 +652,14 @@ export default function AdminPage() {
           <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, color: "#0f172a" }}>Near East Way Yönetim</Typography>
           <Typography sx={{ color: "#64748b", mb: 4, fontSize: "0.9rem" }}>Kurumsal sisteme giriş yapın</Typography>
           <Box component="form" onSubmit={onLogin} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField fullWidth label="Kullanıcı Adı" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+            <TextField
+              fullWidth
+              label={role === "company-admin" ? "Firma E-posta" : "Kullanıcı Adı"}
+              placeholder={role === "company-admin" ? "ornek@firma.com" : "admin"}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+            />
             <TextField fullWidth select label="Erişim Yetkisi" value={role} onChange={(e) => setRole(e.target.value as AdminRole)}>
               {roleOptions.map((opt) => (
                 <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
@@ -356,10 +676,9 @@ export default function AdminPage() {
     );
   }
 
-  // ── MAIN DASHBOARD ─────────────────────────────────────────────────────────
-  return (
+ return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
-      {/* SIDEBAR */}
+    
       <Drawer
         variant="permanent"
         sx={{
@@ -475,12 +794,12 @@ export default function AdminPage() {
               {/* METRICS GRID */}
               <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", xl: "repeat(4, 1fr)" }, mb: 4 }}>
                 {[
-                  { label: "Toplam Rezervasyon", value: overview?.metrics.totalBookings ?? 0, color: "#3b82f6" },
-                  { label: "Aktif Müşteri", value: overview?.metrics.activeUsers ?? 0, color: "#22c55e" },
-                  { label: "Aktif Rota", value: overview?.metrics.busRoutes ?? 0, color: "#f59e0b" },
-                  { label: "Toplam Gelir", value: formatCurrency(overview?.metrics.revenue ?? 0), color: "#8b5cf6" },
+                  { label: "Toplam Rezervasyon", value: overview?.metrics.totalBookings ?? 0,  },
+                  { label: "Aktif Müşteri", value: overview?.metrics.activeUsers ?? 0,   },
+                  { label: "Aktif Rota", value: overview?.metrics.busRoutes ?? 0,  },
+                  { label: "Toplam Gelir", value: formatCurrency(overview?.metrics.revenue ?? 0)  },
                 ].map((card) => (
-                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", borderLeft: `4px solid ${card.color}` }}>
+                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
                     <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
                       {card.label}
                     </Typography>
@@ -503,16 +822,37 @@ export default function AdminPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {trips.slice(0, 8).map((trip) => (
-                      <TableRow key={trip.id} hover>
-                        <TableCell sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#002D62" }}>{trip.tripCode ?? trip.id}</TableCell>
-                        <TableCell sx={{ fontSize: "0.85rem" }}>{trip.company}</TableCell>
-                        <TableCell sx={{ fontSize: "0.85rem", fontWeight: 600 }}>{trip.from} → {trip.to}</TableCell>
-                        <TableCell sx={{ fontSize: "0.82rem", color: "#64748b" }}>{trip.departureDate} {trip.departureTime}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700 }}>₺{trip.price}</TableCell>
-                      </TableRow>
-                    ))}
-                    {trips.length === 0 && (
+                    {(overview?.recentBookings ?? trips).slice(0, 8).map((trip, index) => {
+                      const anyTrip = trip as AdminTrip & {
+                        bookingCode?: string;
+                        route?: string;
+                        travelDate?: string;
+                        totalPrice?: number;
+                      };
+                      const rowKey =
+                        anyTrip.id ??
+                        anyTrip.tripCode ??
+                        anyTrip.bookingCode ??
+                        `${anyTrip.company ?? "unknown"}-${anyTrip.departureDate ?? anyTrip.travelDate ?? "na"}-${index}`;
+                      const routeLabel =
+                        anyTrip.route ?? `${anyTrip.from ?? "-"} → ${anyTrip.to ?? "-"}`;
+                      const dateLabel = anyTrip.departureDate ?? anyTrip.travelDate ?? "-";
+                      const timeLabel = anyTrip.departureTime ?? "";
+                      const amount = anyTrip.price ?? anyTrip.totalPrice ?? 0;
+
+                      return (
+                        <TableRow key={rowKey} hover>
+                          <TableCell sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#002D62" }}>
+                            {anyTrip.tripCode ?? anyTrip.id ?? anyTrip.bookingCode ?? "-"}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem" }}>{anyTrip.company ?? "-"}</TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem", fontWeight: 600 }}>{routeLabel}</TableCell>
+                          <TableCell sx={{ fontSize: "0.82rem", color: "#64748b" }}>{dateLabel} {timeLabel}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700 }}>₺{amount}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {(overview?.recentBookings ?? trips).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>Henüz sefer kaydı yok.</TableCell>
                       </TableRow>
@@ -545,12 +885,14 @@ export default function AdminPage() {
                 <Paper elevation={0} sx={{ p: 3, mb: 3, border: "1px solid #e2e8f0", borderRadius: 2, bgcolor: "#ffffff" }}>
                   <Typography sx={{ fontWeight: 700, color: "#0f172a", mb: 2 }}>Yeni Sefer Oluştur</Typography>
                   <Box component="form" onSubmit={onCreateTrip} sx={{ display: "grid", gap: 2 }}>
-                    <TextField
-                      label="Firma"
-                      value={newTripValues.company}
-                      onChange={(event) => setNewTripValues((prev) => ({ ...prev, company: event.target.value }))}
-                      fullWidth
-                    />
+                    {role === "super-admin" && (
+                      <TextField
+                        label="Firma"
+                        value={newTripValues.company}
+                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, company: event.target.value }))}
+                        fullWidth
+                      />
+                    )}
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
                       <TextField
                         label="Nereden"
@@ -607,7 +949,6 @@ export default function AdminPage() {
                 </Paper>
               )}
 
-              {/* FILTER CHIPS */}
               <Box sx={{ display: "flex", gap: 1, mb: 3, flexWrap: "wrap" }}>
                 {filterButtons.map((btn) => (
                   <Button
@@ -640,6 +981,7 @@ export default function AdminPage() {
                       <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Tarih / Saat</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Durum</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Tutar</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>İşlem</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -664,11 +1006,22 @@ export default function AdminPage() {
                           </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.9rem" }}>₺{trip.price}</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => void onDeleteTrip(trip.id)}
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            Sil
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {filteredTrips.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 5, color: "#94a3b8" }}>
+                        <TableCell colSpan={7} align="center" sx={{ py: 5, color: "#94a3b8" }}>
                           Kriterlere uygun sefer bulunamadı.
                         </TableCell>
                       </TableRow>
@@ -706,19 +1059,514 @@ export default function AdminPage() {
             </Box>
           )}
 
-          {/* ── OTHER SECTIONS ── */}
-          {["users", "reports", "settings"].includes(activeSection) && (
+          {activeSection === "users" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
-                {sectionConfig.find((s) => s.key === activeSection)?.label}
-              </Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Bu modül geliştirme aşamasındadır.</Typography>
-              <Paper elevation={0} sx={{ p: 6, textAlign: "center", border: "1px solid #e2e8f0", borderRadius: 2 }}>
-                <FilterAltOutlinedIcon sx={{ fontSize: 48, color: "#cbd5e1", mb: 2 }} />
-                <Typography sx={{ color: "#64748b", fontWeight: 500 }}>
-                  Erişiminiz doğrulandı. Bu ekran yakında aktif olacaktır.
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Kullanıcı Yönetimi</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Yolcu kayıtlarını ve müşteri davranışını görüntüleyin.</Typography>
+
+              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, mb: 4 }}>
+                {[
+                  { label: "Kullanıcı", value: adminUsers.length },
+                  { label: "Bireysel", value: adminUsers.filter((user) => !user.isCompany).length },
+                  { label: "Firma", value: adminUsers.filter((user) => user.isCompany).length },
+                ].map((card) => (
+                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                      {card.label}
+                    </Typography>
+                    <Typography sx={{ fontSize: "1.9rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+
+              {adminDataLoading ? (
+                <Paper elevation={0} sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                  <Typography>Kullanıcı verileri yükleniyor...</Typography>
+                </Paper>
+              ) : adminUsers.length === 0 ? (
+                <Paper elevation={0} sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                  <Typography>Henüz kullanıcı bulunamadı.</Typography>
+                </Paper>
+              ) : (
+                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                  <Table>
+                    <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>Ad</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Tip</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Kayıt</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {adminUsers.map((user) => (
+                        <TableRow key={user.id} hover>
+                          <TableCell sx={{ fontWeight: 600 }}>{user.name || "Adı yok"}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.isCompany ? "Firma" : "Bireysel"}</TableCell>
+                          <TableCell>{new Date(user.createdAt).toLocaleDateString("tr-TR")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
+
+          {activeSection === "reports" && (
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Raporlar</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Gelir, rota ve şirket performansını backend raporlarıyla izleyin.</Typography>
+
+              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, mb: 4 }}>
+                {[
+                  { label: "Toplam gelir", value: formatCurrency(revenueReport?.summary?.totalRevenue ?? overview?.metrics.revenue ?? 0) },
+                  { label: "Rezervasyon", value: revenueReport?.summary?.totalBookings ?? overview?.metrics.totalBookings ?? 0 },
+                  { label: "Ortalama bilet", value: formatCurrency(revenueReport?.summary?.averageTicket ?? 0) },
+                  { label: "Aktif rota", value: routeReport.length || overview?.metrics.busRoutes || 0 },
+                ].map((card) => (
+                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                      {card.label}
+                    </Typography>
+                    <Typography sx={{ fontSize: "1.6rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+
+              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                  <Typography sx={{ fontWeight: 700, mb: 2 }}>Dönemsel Gelir</Typography>
+                  <Box sx={{ display: "grid", gap: 1 }}>
+                    {(revenueReport?.byPeriod ?? overview?.revenueTrend ?? []).map((item, index) => {
+                      const periodLabel = "label" in item ? item.label : item.month;
+                      return (
+                        <Box key={`${periodLabel}-${index}`} sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+                          <Typography sx={{ color: "#64748b" }}>{periodLabel}</Typography>
+                          <Typography sx={{ fontWeight: 700 }}>{formatCurrency(item.value)}</Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Paper>
+
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                  <Typography sx={{ fontWeight: 700, mb: 2 }}>En Çok Kullanılan Rotalar</Typography>
+                  <Box sx={{ display: "grid", gap: 1 }}>
+                    {(routeReport.length ? routeReport : (overview?.popularRoutes ?? []).map((route) => ({ route: route.label, bookings: route.value, revenue: 0, passengers: 0 }))).map((item) => (
+                      <Box key={item.route} sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+                        <Typography sx={{ color: "#64748b" }}>{item.route}</Typography>
+                        <Typography sx={{ fontWeight: 700 }}>{item.bookings} rezervasyon</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Paper>
+              </Box>
+
+              <Paper elevation={0} sx={{ mt: 3, p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>Şirket Performansı</Typography>
+                {companyReport.length === 0 ? (
+                  <Typography sx={{ color: "#64748b" }}>Şirket raporu bulunamadı.</Typography>
+                ) : (
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700 }}>Şirket</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Sefer</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Rezervasyon</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Yolcu</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Araç</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>Gelir</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {companyReport.map((item) => (
+                          <TableRow key={item.companyId}>
+                            <TableCell>
+                              <Typography sx={{ fontWeight: 700 }}>{item.name}</Typography>
+                              <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>{item.routes.length} rota</Typography>
+                            </TableCell>
+                            <TableCell>{item.trips}</TableCell>
+                            <TableCell>{item.bookings}</TableCell>
+                            <TableCell>{item.passengers}</TableCell>
+                            <TableCell>{item.vehicleCount}</TableCell>
+                            <TableCell>{formatCurrency(item.revenue)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+
+                {companyReport.length > 0 && (
+                  <Box sx={{ mt: 3, display: "grid", gap: 2 }}>
+                    {companyReport.map((item) => (
+                      <Paper key={`${item.companyId}-routes`} elevation={0} sx={{ p: 2.25, borderRadius: 2, border: "1px solid #eef2f7", boxShadow: "none" }}>
+                        <Typography sx={{ fontWeight: 700, mb: 1 }}>{item.name} rota detayları</Typography>
+                        {item.routes.length === 0 ? (
+                          <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Bu firmaya ait kayıtlı rota bulunamadı.</Typography>
+                        ) : (
+                          <Box sx={{ display: "grid", gap: 1 }}>
+                            {item.routes.map((route) => (
+                              <Box key={`${item.companyId}-${route.route}-${route.price}`} sx={{ display: "grid", gap: 0.3, gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 1fr" }, alignItems: "center" }}>
+                                <Typography sx={{ fontSize: "0.86rem", color: "#0f172a", fontWeight: 600 }}>{route.route}</Typography>
+                                <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Fiyat: {formatCurrency(route.price)}</Typography>
+                                <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Yolcu: {route.passengers}</Typography>
+                                <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Araç: {route.vehicle}</Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
+              </Paper>
+            </Box>
+          )}
+
+          {activeSection === "settings" && (
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Ayarlar</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Yetki, şirket ve oturum özetleri.</Typography>
+
+              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, mb: 4 }}>
+                {[
+                  { label: "Rol", value: role },
+                  { label: "Oturum", value: token ? "Aktif" : "Pasif" },
+                  { label: "Şirket", value: companies.length },
+                ].map((card) => (
+                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                      {card.label}
+                    </Typography>
+                    <Typography sx={{ fontSize: "1.6rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>
+                  Firma, sefer, rota ve araç yönetimi rolünüze göre ilgili sekmelerden yapılır.
                 </Typography>
               </Paper>
+            </Box>
+          )}
+
+          {activeSection === "companies" && (
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Firmalar</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Firma ekleme, listeleme ve silme işlemleri.</Typography>
+
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>Yeni Firma Ekle</Typography>
+                <Box component="form" onSubmit={onCreateCompany} sx={{ display: "grid", gap: 2 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                    <TextField
+                      label="Firma Adı"
+                      value={newCompanyValues.companyName}
+                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, companyName: event.target.value }))}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Yetkili"
+                      value={newCompanyValues.contactName}
+                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, contactName: event.target.value }))}
+                      fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                    <TextField
+                      label="E-posta"
+                      type="email"
+                      value={newCompanyValues.email}
+                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, email: event.target.value }))}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Şifre (opsiyonel)"
+                      type="password"
+                      value={newCompanyValues.password}
+                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, password: event.target.value }))}
+                      fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+                    >
+                      Firma Ekle
+                    </Button>
+                  </Box>
+                  {companyStatus && (
+                    <Typography sx={{ color: companyStatus.includes("başarı") || companyStatus.includes("silindi") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
+                      {companyStatus}
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+
+              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Firma</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Yetkili</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Durum</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>İşlem</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {companies.map((company) => (
+                      <TableRow key={company.id} hover>
+                        <TableCell sx={{ fontWeight: 700 }}>{company.companyName}</TableCell>
+                        <TableCell>{company.contactName}</TableCell>
+                        <TableCell>{company.email}</TableCell>
+                        <TableCell>
+                          <Typography sx={{ fontSize: "0.84rem", fontWeight: 700, color: company.status === "approved" ? "#16a34a" : "#d97706" }}>
+                            {company.status}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => void onDeleteCompany(company.id)}
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            Sil
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {companies.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>
+                          Kayıtlı firma bulunamadı.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+
+          {activeSection === "vehicles" && (
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Araç Yönetimi</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Araç ekleyin, görüntüleyin ve kaldırın.</Typography>
+
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>Yeni Araç Ekle</Typography>
+                <Box component="form" onSubmit={onCreateVehicle} sx={{ display: "grid", gap: 2 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                    <TextField
+                      label="Plaka"
+                      value={newVehicleValues.plate}
+                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, plate: event.target.value }))}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Araç Tipi"
+                      value={newVehicleValues.busType}
+                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, busType: event.target.value }))}
+                      fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                    <TextField
+                      label="Koltuk Sayısı"
+                      type="number"
+                      value={newVehicleValues.seatsTotal}
+                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, seatsTotal: event.target.value }))}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Dizilim"
+                      select
+                      value={newVehicleValues.seatLayout}
+                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, seatLayout: event.target.value as "2+2" | "2+1" | "1+1" }))}
+                      fullWidth
+                    >
+                      <MenuItem value="2+2">2+2</MenuItem>
+                      <MenuItem value="2+1">2+1</MenuItem>
+                      <MenuItem value="1+1">1+1</MenuItem>
+                    </TextField>
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+                    >
+                      Araç Ekle
+                    </Button>
+                  </Box>
+                  {vehicleStatus && (
+                    <Typography sx={{ color: vehicleStatus.includes("başarı") || vehicleStatus.includes("silindi") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
+                      {vehicleStatus}
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+
+              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Plaka</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Tip</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Koltuk</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Dizilim</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>İşlem</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {vehicles.map((vehicle) => (
+                      <TableRow key={vehicle.id} hover>
+                        <TableCell sx={{ fontWeight: 700 }}>{vehicle.plate}</TableCell>
+                        <TableCell>{vehicle.busType}</TableCell>
+                        <TableCell>{vehicle.seatsTotal}</TableCell>
+                        <TableCell>{vehicle.seatLayout}</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => void onDeleteVehicle(vehicle.id)}
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            Sil
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {vehicles.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>
+                          Kayıtlı araç bulunamadı.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+
+          {activeSection === "route-management" && (
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Rota Yönetimi</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Güzergahları ekleyin, listeleyin ve kaldırın.
+              </Typography>
+
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>Yeni Rota Ekle</Typography>
+                <Box component="form" onSubmit={onCreateRoute} sx={{ display: "grid", gap: 2 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                    <TextField
+                      label="Nereden"
+                      value={newRouteValues.from}
+                      onChange={(event) =>
+                        setNewRouteValues((prev) => ({ ...prev, from: event.target.value }))
+                      }
+                      fullWidth
+                    />
+                    <TextField
+                      label="Nereye"
+                      value={newRouteValues.to}
+                      onChange={(event) =>
+                        setNewRouteValues((prev) => ({ ...prev, to: event.target.value }))
+                      }
+                      fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                    <TextField
+                      label="Temel Fiyat"
+                      type="number"
+                      value={newRouteValues.basePrice}
+                      onChange={(event) =>
+                        setNewRouteValues((prev) => ({ ...prev, basePrice: event.target.value }))
+                      }
+                      fullWidth
+                    />
+                    <TextField
+                      label="Süre (dk)"
+                      type="number"
+                      value={newRouteValues.durationMinutes}
+                      onChange={(event) =>
+                        setNewRouteValues((prev) => ({ ...prev, durationMinutes: event.target.value }))
+                      }
+                      fullWidth
+                    />
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+                    >
+                      Rota Ekle
+                    </Button>
+                  </Box>
+                  {routeStatus && (
+                    <Typography sx={{ color: routeStatus.includes("başarı") || routeStatus.includes("silindi") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
+                      {routeStatus}
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+
+              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Nereden</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Nereye</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Temel Fiyat</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Süre</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>İşlem</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {routes.map((route, idx) => (
+                      <TableRow key={`${route.from}-${route.to}-${idx}`} hover>
+                        <TableCell>{route.from}</TableCell>
+                        <TableCell>{route.to}</TableCell>
+                        <TableCell>₺{route.basePrice}</TableCell>
+                        <TableCell>{route.durationMinutes} dk</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => void onDeleteRoute(idx)}
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            Sil
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {routes.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>
+                          Kayıtlı rota bulunamadı.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Box>
           )}
 

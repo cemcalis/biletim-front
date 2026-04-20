@@ -3,6 +3,7 @@
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { PropsWithChildren, useMemo } from "react";
+import { GOOGLE_CLIENT_ID } from "@/lib/google-config";
 
 export function Providers({ children }: PropsWithChildren) {
   const theme = useMemo(
@@ -51,7 +52,7 @@ export function Providers({ children }: PropsWithChildren) {
   );
 
   return (
-    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ''}>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

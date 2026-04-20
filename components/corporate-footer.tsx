@@ -86,7 +86,7 @@ export function CorporateFooter() {
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                 <LocationOnOutlinedIcon sx={{ fontSize: 16, color: "#D4AF37", mt: "2px", flexShrink: 0 }} />
                 <Typography sx={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
-                  Levent, Büyükdere Cd. No:199, 34394 Şişli / İstanbul
+                  Near east bank 
                 </Typography>
               </Box>
             </Box>

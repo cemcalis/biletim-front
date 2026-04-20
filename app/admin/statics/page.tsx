@@ -22,6 +22,7 @@ const menuItems: SidebarItem[] = [
   { label: "Ana Sayfa", href: "/admin", key: "overview" },
   { label: "Seferler", href: "/admin#trips", key: "trips" },
   { label: "Firma Başvuruları", href: "/admin#requests", key: "requests" },
+  { label: "Firmalar", href: "/admin#companies", key: "companies" },
   { label: "Kullanıcı Yönetimi", href: "/admin/users", key: "users" },
   { label: "Raporlar", href: "/admin#reports", key: "reports" },
   { label: "Ayarlar", href: "/admin#settings", key: "settings" },
