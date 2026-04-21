@@ -21,6 +21,7 @@ export function setToken(token: string) {
     return;
   }
   localStorage.setItem(TOKEN_KEY, token);
+  document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=86400`;
 }
 
 export function getStoredUser(): User {
@@ -58,4 +59,5 @@ export function clearStoredUser() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(NAME_KEY);
   localStorage.removeItem(EMAIL_KEY);
+  document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }

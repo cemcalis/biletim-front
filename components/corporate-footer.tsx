@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Box, Container, Divider, Typography } from "@mui/material";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";

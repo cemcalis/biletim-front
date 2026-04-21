@@ -17,10 +17,10 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import { usePathname } from "next/navigation";
 import { clearStoredUser, getStoredUser, setStoredUser, type User as StoredUser } from "../lib/session";
 
 type UserNavbarProps = {
-  active: "home" | "search" | "track" | "bookings" | "admin" | "my-account";
   variant?: "default" | "hero";
 };
 
@@ -34,7 +34,14 @@ const navItems = [
 
 const adminNavItem = { label: "Yönetim Paneli", href: "/admin", key: "admin" as const };
 
-export default function UserNavbar({ active, variant = "default" }: UserNavbarProps) {
+export default function UserNavbar({ variant = "default" }: UserNavbarProps) {
+  const pathname = usePathname();
+  const active = pathname === "/" ? "home" :
+                 pathname.startsWith("/search-buses") ? "search" :
+                 pathname.startsWith("/track-bus") ? "track" :
+                 pathname.startsWith("/my-bookings") ? "bookings" :
+                 pathname.startsWith("/admin") ? "admin" :
+                 pathname.startsWith("/my-account") ? "my-account" : "";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -95,7 +102,7 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
   }
 
   const popoverOpen = Boolean(anchorEl);
-  const isHero = variant === "hero";
+  const isHero = variant === "hero" || pathname === "/";
 
   return (
     <AppBar

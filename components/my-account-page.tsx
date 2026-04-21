@@ -25,8 +25,6 @@ import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SaveIcon from "@mui/icons-material/Save";
 import LogoutIcon from "@mui/icons-material/Logout";
-import UserNavbar from "@/components/user-navbar";
-import { CorporateFooter } from "@/components/corporate-footer";
 import { apiGet, apiRequest } from "@/lib/api";
 import { clearStoredUser, getStoredUser, isAuthenticated, setStoredUser } from "@/lib/session";
 
@@ -176,20 +174,13 @@ export default function MyAccountPage() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f6f8fc" }}>
-        <UserNavbar active="my-account" />
         <Container sx={{ flex: 1, py: 6 }}>
           <Typography sx={{ color: "#64748b" }}>Hesap bilgileri yukleniyor...</Typography>
         </Container>
-        <CorporateFooter />
-      </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f6f8fc" }}>
-      <UserNavbar active="my-account" />
-
       <Container maxWidth="lg" sx={{ flex: 1, py: { xs: 4, md: 6 } }}>
         <Box
           sx={{
@@ -444,8 +435,5 @@ export default function MyAccountPage() {
           </Grid>
         </Grid>
       </Container>
-
-      <CorporateFooter />
-    </Box>
   );
 }
