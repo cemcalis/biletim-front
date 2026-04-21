@@ -36,6 +36,10 @@ function ResetPasswordForm() {
       setError('Lütfen yeni şifrenizi girin.');
       return;
     }
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+      setError('Şifre en az 8 karakter olmalı ve harf ile rakam içermelidir.');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Şifreler eşleşmiyor.');
       return;

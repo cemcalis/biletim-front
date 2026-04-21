@@ -77,10 +77,13 @@ import {
   AttachMoneyOutlined as MoneyIcon,
   PeopleOutlined as PeopleIcon,
   LocationOnOutlined as LocationIcon,
+  Menu as MenuIcon,
 } from "@mui/icons-material";
+import { useRouter } from "next/navigation";
 
 import { apiGet, apiRequest } from "../../lib/api";
 import { clearStoredUser } from "../../lib/session";
+import { CYPRUS_CITIES } from "../../lib/cities";
 
 type AdminOverviewResponse = {
   metrics: {
@@ -106,6 +109,7 @@ type AdminUser = {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   isCompany: boolean;
   createdAt: string;
 };
@@ -165,12 +169,14 @@ type AdminTrip = {
   id: string;
   tripCode?: string;
   company: string;
+  companyId?: string;
   from: string;
   to: string;
   departureDate: string;
   departureTime: string;
   price: number;
   isActive?: boolean;
+  approvalStatus?: "pending" | "approved" | "rejected";
 };
 
 type AdminRoute = {
@@ -193,32 +199,76 @@ type AdminVehicle = {
 
 type AdminRole = "super-admin" | "company-admin";
 type FilterWindow = "all" | "today" | "two-days" | "week";
-type AdminSection = "overview" | "trips" | "requests" | "users" | "reports" | "settings" | "route-management" | "companies" | "vehicles";
+type AdminSection =
+  | "overview"
+  | "trips"
+  | "requests"
+  | "users"
+  | "reports"
+  | "settings"
+  | "route-management"
+  | "companies"
+  | "vehicles";
 
 const ROLE_STORAGE_KEY = "admin_role";
 const DRAWER_WIDTH = 250;
 
-const roleConfig: Record<AdminRole, { label: string; allowedSections: AdminSection[] }> = {
+const roleConfig: Record<
+  AdminRole,
+  { label: string; allowedSections: AdminSection[] }
+> = {
   "super-admin": {
     label: "Sistem Yöneticisi",
-    allowedSections: ["overview", "requests", "users", "reports", "companies", "settings"],
+    allowedSections: [
+      "overview",
+      "trips",
+      "route-management",
+      "vehicles",
+      "requests",
+      "users",
+      "reports",
+      "companies",
+      "settings",
+    ],
   },
   "company-admin": {
     label: "Firma Yetkilisi",
-    allowedSections: ["overview", "trips", "route-management", "vehicles", "settings"],
+    allowedSections: [
+      "overview",
+      "trips",
+      "route-management",
+      "vehicles",
+      "settings",
+    ],
   },
 };
 
-const sectionConfig: Array<{ key: AdminSection; label: string; icon: React.ReactNode }> = [
+const sectionConfig: Array<{
+  key: AdminSection;
+  label: string;
+  icon: React.ReactNode;
+}> = [
   { key: "overview", label: "Dashboard", icon: <HomeOutlinedIcon /> },
-  { key: "trips", label: "Sefer Yönetimi", icon: <DirectionsBusOutlinedIcon /> },
+  {
+    key: "trips",
+    label: "Sefer Yönetimi",
+    icon: <DirectionsBusOutlinedIcon />,
+  },
   { key: "vehicles", label: "Araç Yönetimi", icon: <VehicleIcon /> },
-  { key: "requests", label: "Başvurular", icon: <AssignmentTurnedInOutlinedIcon /> },
+  {
+    key: "requests",
+    label: "Başvurular",
+    icon: <AssignmentTurnedInOutlinedIcon />,
+  },
   { key: "companies", label: "Firmalar", icon: <GroupOutlinedIcon /> },
   { key: "users", label: "Kullanıcılar", icon: <GroupOutlinedIcon /> },
   { key: "reports", label: "Raporlar", icon: <QueryStatsOutlinedIcon /> },
   { key: "settings", label: "Ayarlar", icon: <SettingsOutlinedIcon /> },
-  { key: "route-management", label: "Rota Yönetimi", icon: <MapOutlinedIcon /> },
+  {
+    key: "route-management",
+    label: "Rota Yönetimi",
+    icon: <MapOutlinedIcon />,
+  },
 ];
 
 const roleOptions: Array<{ value: AdminRole; label: string }> = [
@@ -234,7 +284,11 @@ const filterButtons: Array<{ value: FilterWindow; label: string }> = [
 ];
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function normalize(value: string) {
@@ -244,18 +298,20 @@ function normalize(value: string) {
 function daysFromToday(dateString: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const d = new Date(`${dateString}T12:00:00`);
+  const d = new Date(dateString + "T12:00:00");
   d.setHours(0, 0, 0, 0);
   return Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export default function AdminPage() {
+  const router = useRouter();
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [role, setRole] = useState<AdminRole>("super-admin");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterWindow, setFilterWindow] = useState<FilterWindow>("all");
   const [selectedCompany, setSelectedCompany] = useState("all");
@@ -264,7 +320,8 @@ export default function AdminPage() {
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [trips, setTrips] = useState<AdminTrip[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [revenueReport, setRevenueReport] = useState<RevenueReportResponse | null>(null);
+  const [revenueReport, setRevenueReport] =
+    useState<RevenueReportResponse | null>(null);
   const [routeReport, setRouteReport] = useState<RouteReportItem[]>([]);
   const [companyReport, setCompanyReport] = useState<CompanyReportItem[]>([]);
   const [companies, setCompanies] = useState<AdminCompany[]>([]);
@@ -295,48 +352,103 @@ export default function AdminPage() {
   const [newTripOpen, setNewTripOpen] = useState(false);
   const [tripStatus, setTripStatus] = useState("");
   const [newTripValues, setNewTripValues] = useState({
-    company: "",
+    companyId: "",
+    vehicleId: "",
     from: "",
     to: "",
     departureDate: "",
     departureTime: "",
     price: "",
   });
+  const [editUserOpen, setEditUserOpen] = useState(false);
+  const [editUserData, setEditUserData] = useState<AdminUser | null>(null);
+  const [editUserValues, setEditUserValues] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  const [editUserStatus, setEditUserStatus] = useState("");
+  const [pendingTrips, setPendingTrips] = useState<AdminTrip[]>([]);
+  const [tripApprovalStatus, setTripApprovalStatus] = useState("");
 
   useEffect(() => {
     setToken(localStorage.getItem("admin_token") ?? "");
-    const storedRole = localStorage.getItem(ROLE_STORAGE_KEY) as AdminRole | null;
+    const storedRole = localStorage.getItem(
+      ROLE_STORAGE_KEY,
+    ) as AdminRole | null;
     if (storedRole && roleConfig[storedRole]) setRole(storedRole);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    if (activeSection === "trips" && role === "super-admin") {
+      void fetchPendingTrips();
+    }
+  }, [token, activeSection, role]);
 
   useEffect(() => {
     if (!token) return;
     async function loadData() {
       setAdminDataLoading(true);
       try {
-        const [overviewData, tripData, usersData, revenueData, routesData, routeListData, companiesData, companyStats, vehiclesData] = await Promise.all([
+        const encodedToken = encodeURIComponent(token);
+        const [
+          overviewData,
+          tripData,
+          usersData,
+          revenueData,
+          routesData,
+          routeListData,
+          companiesData,
+          companyStats,
+          vehiclesData,
+        ] = await Promise.all([
           apiGet<AdminOverviewResponse>("/admin/overview").catch(() => null),
-          apiGet<{ ok: boolean; trips?: AdminTrip[] }>(`/admin/trips?token=${encodeURIComponent(token)}`).catch(() => null),
-          apiGet<AdminUsersResponse>(`/admin/users?token=${encodeURIComponent(token)}&page=1&limit=8&sortBy=createdAt&sortOrder=desc`).catch(() => null),
-          apiGet<RevenueReportResponse>(`/admin/reports/revenue?token=${encodeURIComponent(token)}&period=monthly`).catch(() => null),
-          apiGet<{ ok: boolean; routes?: RouteReportItem[] }>(`/admin/reports/routes?token=${encodeURIComponent(token)}`).catch(() => null),
-          apiGet<{ ok: boolean; routes?: AdminRoute[] }>(`/admin/routes?token=${encodeURIComponent(token)}`).catch(() => null),
-          apiGet<{ ok: boolean; companies?: AdminCompany[] }>(`/admin/companies?token=${encodeURIComponent(token)}`).catch(() => null),
-          apiGet<{ ok: boolean; companies?: CompanyReportItem[] }>(`/admin/reports/companies?token=${encodeURIComponent(token)}`).catch(() => null),
-          apiGet<{ ok: boolean; vehicles?: AdminVehicle[] }>(`/admin/vehicles?token=${encodeURIComponent(token)}`).catch(() => null),
+          apiGet<{ ok: boolean; trips?: AdminTrip[] }>(
+            "/admin/trips?token=" + encodedToken,
+          ).catch(() => null),
+          apiGet<AdminUsersResponse>(
+            "/admin/users?token=" +
+              encodedToken +
+              "&page=1&limit=8&sortBy=createdAt&sortOrder=desc",
+          ).catch(() => null),
+          apiGet<RevenueReportResponse>(
+            "/admin/reports/revenue?token=" + encodedToken + "&period=monthly",
+          ).catch(() => null),
+          apiGet<{ ok: boolean; routes?: RouteReportItem[] }>(
+            "/admin/reports/routes?token=" + encodedToken,
+          ).catch(() => null),
+          apiGet<{ ok: boolean; routes?: AdminRoute[] }>(
+            "/admin/routes?token=" + encodedToken,
+          ).catch(() => null),
+          apiGet<{ ok: boolean; companies?: AdminCompany[] }>(
+            "/admin/companies?token=" + encodedToken,
+          ).catch(() => null),
+          apiGet<{ ok: boolean; companies?: CompanyReportItem[] }>(
+            "/admin/reports/companies?token=" + encodedToken,
+          ).catch(() => null),
+          apiGet<{ ok: boolean; vehicles?: AdminVehicle[] }>(
+            "/admin/vehicles?token=" + encodedToken,
+          ).catch(() => null),
         ]);
         if (overviewData) setOverview(overviewData);
         if (tripData?.ok && tripData.trips) setTrips(tripData.trips);
         if (usersData?.ok && usersData.users) setAdminUsers(usersData.users);
         if (revenueData?.ok) setRevenueReport(revenueData);
-        if (routesData?.ok && routesData.routes) setRouteReport(routesData.routes);
-        if (routeListData?.ok && routeListData.routes) setRoutes(routeListData.routes);
-        if (companiesData?.ok && companiesData.companies) setCompanies(companiesData.companies);
-        if (companyStats?.ok && companyStats.companies) setCompanyReport(companyStats.companies);
-        if (vehiclesData?.ok && vehiclesData.vehicles) setVehicles(vehiclesData.vehicles);
-        const reqData = await apiGet<{ ok: boolean; requests?: CompanyRequest[] }>(
-          `/admin/company-requests?token=${token}`
-        ).catch(() => null);
+        if (routesData?.ok && routesData.routes)
+          setRouteReport(routesData.routes);
+        if (routeListData?.ok && routeListData.routes)
+          setRoutes(routeListData.routes);
+        if (companiesData?.ok && companiesData.companies)
+          setCompanies(companiesData.companies);
+        if (companyStats?.ok && companyStats.companies)
+          setCompanyReport(companyStats.companies);
+        if (vehiclesData?.ok && vehiclesData.vehicles)
+          setVehicles(vehiclesData.vehicles);
+        const reqData = await apiGet<{
+          ok: boolean;
+          requests?: CompanyRequest[];
+        }>("/admin/company-requests?token=" + encodedToken).catch(() => null);
         if (reqData?.ok && reqData.requests) setRequests(reqData.requests);
       } catch (err) {
         console.error(err);
@@ -351,16 +463,22 @@ export default function AdminPage() {
     event.preventDefault();
     setLoginError("");
     try {
-      const result = await apiRequest<{ ok: boolean; token?: string; message?: string; role?: AdminRole }>(
-        "/admin/login", "POST", { username, password, role }
-      );
-      if (!result.ok || !result.token) return setLoginError(result.message ?? "Giriş başarısız.");
+      const result = await apiRequest<{
+        ok: boolean;
+        token?: string;
+        message?: string;
+        role?: AdminRole;
+      }>("/admin/login", "POST", { username, password, role });
+      if (!result.ok || !result.token)
+        return setLoginError(result.message ?? "Giriş başarısız.");
       localStorage.setItem("admin_token", result.token);
       localStorage.setItem(ROLE_STORAGE_KEY, result.role ?? role);
       setToken(result.token);
       setRole(result.role ?? role);
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "Sunucu bağlantı hatası.");
+      setLoginError(
+        error instanceof Error ? error.message : "Sunucu bağlantı hatası.",
+      );
     }
   }
 
@@ -381,7 +499,11 @@ export default function AdminPage() {
   }
 
   async function onApprove(companyId: string) {
-    const res = await apiRequest<{ ok: boolean }>(`/admin/company-requests/${companyId}/approve`, "PATCH", { token });
+    const res = await apiRequest<{ ok: boolean }>(
+      `/admin/company-requests/${companyId}/approve`,
+      "PATCH",
+      { token },
+    );
     if (res.ok) setRequests((prev) => prev.filter((r) => r.id !== companyId));
   }
 
@@ -389,27 +511,65 @@ export default function AdminPage() {
     event.preventDefault();
     setTripStatus("");
 
-    if (!newTripValues.company || !newTripValues.from || !newTripValues.to || !newTripValues.departureDate || !newTripValues.departureTime || !newTripValues.price) {
+    if (
+      !newTripValues.from ||
+      !newTripValues.to ||
+      !newTripValues.departureDate ||
+      !newTripValues.departureTime ||
+      !newTripValues.price ||
+      !newTripValues.vehicleId
+    ) {
       setTripStatus("Lütfen tüm sefer bilgilerini doldurun.");
       return;
     }
 
+    if (newTripValues.from === newTripValues.to) {
+      setTripStatus("Nereden ve nereye şehirleri aynı olamaz.");
+      return;
+    }
+
+    if (role === "super-admin" && !newTripValues.companyId) {
+      setTripStatus("Lütfen firma seçin.");
+      return;
+    }
+
+    const selectedCompany = companies.find(
+      (item) => item.id === newTripValues.companyId,
+    );
+    const selectedVehicle = vehicles.find(
+      (item) => item.id === newTripValues.vehicleId,
+    );
+
+    if (!selectedVehicle) {
+      setTripStatus("Seçilen araç bulunamadı.");
+      return;
+    }
+
     try {
-      const result = await apiRequest<{ ok: boolean; trip?: AdminTrip; message?: string }>(
-        "/admin/trips",
-        "POST",
-        {
-          token,
-          trip: {
-            ...(newTripValues.company ? { company: newTripValues.company } : {}),
-            from: newTripValues.from,
-            to: newTripValues.to,
-            departureDate: newTripValues.departureDate,
-            departureTime: newTripValues.departureTime,
-            price: Number(newTripValues.price),
-          },
+      const result = await apiRequest<{
+        ok: boolean;
+        trip?: AdminTrip;
+        message?: string;
+      }>("/admin/trips", "POST", {
+        token,
+        trip: {
+          ...(selectedCompany
+            ? {
+                companyId: selectedCompany.id,
+                company: selectedCompany.companyName,
+              }
+            : {}),
+          vehicleId: selectedVehicle.id,
+          from: newTripValues.from,
+          to: newTripValues.to,
+          departureDate: newTripValues.departureDate,
+          departureTime: newTripValues.departureTime,
+          price: Number(newTripValues.price),
+          busType: selectedVehicle.busType,
+          seatLayout: selectedVehicle.seatLayout,
+          seatsTotal: selectedVehicle.seatsTotal,
         },
-      );
+      });
 
       if (!result.ok) {
         setTripStatus(result.message ?? "Sefer oluşturulamadı.");
@@ -420,7 +580,15 @@ export default function AdminPage() {
         setTrips((prev) => [result.trip!, ...prev]);
       }
       setTripStatus("Sefer başarıyla oluşturuldu.");
-      setNewTripValues({ company: "", from: "", to: "", departureDate: "", departureTime: "", price: "" });
+      setNewTripValues({
+        companyId: "",
+        vehicleId: "",
+        from: "",
+        to: "",
+        departureDate: "",
+        departureTime: "",
+        price: "",
+      });
       setNewTripOpen(false);
     } catch {
       setTripStatus("Sefer oluşturulamadı. Lütfen tekrar deneyin.");
@@ -428,10 +596,16 @@ export default function AdminPage() {
   }
 
   async function onDeleteTrip(tripId: string) {
-    const confirmed = window.confirm("Bu seferi silmek istediğinizden emin misiniz?");
+    const confirmed = window.confirm(
+      "Bu seferi silmek istediğinizden emin misiniz?",
+    );
     if (!confirmed) return;
     try {
-      const result = await apiRequest<{ ok: boolean; message?: string }>(`/admin/trips/${tripId}`, "DELETE", { token });
+      const result = await apiRequest<{ ok: boolean; message?: string }>(
+        `/admin/trips/${tripId}`,
+        "DELETE",
+        { token },
+      );
       if (result.ok) {
         setTrips((prev) => prev.filter((t) => t.id !== tripId));
       } else {
@@ -442,12 +616,139 @@ export default function AdminPage() {
     }
   }
 
+  async function onDeleteUser(userId: string) {
+    const confirmed = window.confirm(
+      "Bu kullanıcıyı silmek istediğinizden emin misiniz?",
+    );
+    if (!confirmed) return;
+
+    try {
+      const result = await apiRequest<{ ok: boolean; message?: string }>(
+        "/admin/users/delete",
+        "POST",
+        { token, userId },
+      );
+
+      if (!result.ok) {
+        alert(result.message ?? "Kullanıcı silinemedi.");
+        return;
+      }
+
+      setAdminUsers((prev) => prev.filter((user) => user.id !== userId));
+    } catch {
+      alert("Kullanıcı silinirken hata oluştu.");
+    }
+  }
+
+  function openEditUser(user: AdminUser) {
+    setEditUserData(user);
+    setEditUserValues({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+    });
+    setEditUserStatus("");
+    setEditUserOpen(true);
+  }
+
+  async function onUpdateUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editUserData) return;
+
+    setEditUserStatus("");
+    try {
+      const result = await apiRequest<{
+        ok: boolean;
+        user?: AdminUser;
+        message?: string;
+      }>(`/admin/users/${editUserData.id}`, "PATCH", {
+        token,
+        userId: editUserData.id,
+        name: editUserValues.name,
+        email: editUserValues.email,
+        phone: editUserValues.phone,
+      });
+
+      if (!result.ok) {
+        setEditUserStatus(result.message ?? "Kullanıcı güncellenemedi.");
+        return;
+      }
+
+      if (result.user) {
+        setAdminUsers((prev) =>
+          prev.map((u) => (u.id === result.user!.id ? result.user! : u)),
+        );
+      }
+      setEditUserStatus("Kullanıcı başarıyla güncellendi.");
+      setTimeout(() => {
+        setEditUserOpen(false);
+        setEditUserStatus("");
+      }, 1500);
+    } catch {
+      setEditUserStatus("Kullanıcı güncellenirken hata oluştu.");
+    }
+  }
+
+  async function fetchPendingTrips() {
+    if (role !== "super-admin") return;
+    try {
+      const result = await apiGet<{ ok: boolean; trips?: AdminTrip[] }>(
+        `/admin/trips/pending?token=${encodeURIComponent(token)}`,
+      );
+      if (result?.ok && result.trips) {
+        setPendingTrips(result.trips);
+      }
+    } catch {
+      console.error("Onay bekleyen seferler yüklenemedi");
+    }
+  }
+
+  async function onApproveTrip(
+    tripId: string,
+    status: "approved" | "rejected",
+  ) {
+    setTripApprovalStatus("");
+    try {
+      const result = await apiRequest<{
+        ok: boolean;
+        trip?: AdminTrip;
+        message?: string;
+      }>(`/admin/trips/${tripId}/approve`, "PATCH", { token, status });
+      if (!result.ok) {
+        setTripApprovalStatus(result.message ?? "İşlem başarısız.");
+        return;
+      }
+      // Remove from pending list
+      setPendingTrips((prev) => prev.filter((t) => t.id !== tripId));
+      // Add to trips list if approved
+      if (status === "approved" && result.trip) {
+        setTrips((prev) => [result.trip!, ...prev]);
+      }
+      setTripApprovalStatus(
+        status === "approved" ? "Sefer onaylandı." : "Sefer reddedildi.",
+      );
+      setTimeout(() => setTripApprovalStatus(""), 2000);
+    } catch {
+      setTripApprovalStatus("İşlem sırasında hata oluştu.");
+    }
+  }
+
   async function onCreateRoute(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setRouteStatus("");
 
-    if (!newRouteValues.from || !newRouteValues.to || !newRouteValues.basePrice || !newRouteValues.durationMinutes) {
+    if (
+      !newRouteValues.from ||
+      !newRouteValues.to ||
+      !newRouteValues.basePrice ||
+      !newRouteValues.durationMinutes
+    ) {
       setRouteStatus("Lütfen rota için tüm alanları doldurun.");
+      return;
+    }
+
+    if (newRouteValues.from === newRouteValues.to) {
+      setRouteStatus("Nereden ve nereye şehirleri aynı olamaz.");
       return;
     }
 
@@ -459,11 +760,11 @@ export default function AdminPage() {
     };
 
     try {
-      const result = await apiRequest<{ ok: boolean; route?: AdminRoute; message?: string }>(
-        "/admin/routes",
-        "POST",
-        { token, route: payload },
-      );
+      const result = await apiRequest<{
+        ok: boolean;
+        route?: AdminRoute;
+        message?: string;
+      }>("/admin/routes", "POST", { token, route: payload });
 
       if (!result.ok) {
         setRouteStatus(result.message ?? "Rota oluşturulamadı.");
@@ -474,14 +775,21 @@ export default function AdminPage() {
       if (result.route) {
         setRoutes((prev) => [...prev, result.route as AdminRoute]);
       }
-      setNewRouteValues({ from: "", to: "", basePrice: "", durationMinutes: "" });
+      setNewRouteValues({
+        from: "",
+        to: "",
+        basePrice: "",
+        durationMinutes: "",
+      });
     } catch {
       setRouteStatus("Rota oluşturulurken bir hata oluştu.");
     }
   }
 
   async function onDeleteRoute(routeIndex: number) {
-    const confirmed = window.confirm("Bu rotayı silmek istediğinizden emin misiniz?");
+    const confirmed = window.confirm(
+      "Bu rotayı silmek istediğinizden emin misiniz?",
+    );
     if (!confirmed) {
       return;
     }
@@ -509,25 +817,29 @@ export default function AdminPage() {
     event.preventDefault();
     setCompanyStatus("");
 
-    if (!newCompanyValues.companyName || !newCompanyValues.contactName || !newCompanyValues.email) {
+    if (
+      !newCompanyValues.companyName ||
+      !newCompanyValues.contactName ||
+      !newCompanyValues.email
+    ) {
       setCompanyStatus("Firma adı, yetkili ve e-posta zorunludur.");
       return;
     }
 
     try {
-      const result = await apiRequest<{ ok: boolean; company?: AdminCompany; message?: string }>(
-        "/admin/companies",
-        "POST",
-        {
-          token,
-          company: {
-            companyName: newCompanyValues.companyName,
-            contactName: newCompanyValues.contactName,
-            email: newCompanyValues.email,
-            password: newCompanyValues.password || undefined,
-          },
+      const result = await apiRequest<{
+        ok: boolean;
+        company?: AdminCompany;
+        message?: string;
+      }>("/admin/companies", "POST", {
+        token,
+        company: {
+          companyName: newCompanyValues.companyName,
+          contactName: newCompanyValues.contactName,
+          email: newCompanyValues.email,
+          password: newCompanyValues.password || undefined,
         },
-      );
+      });
 
       if (!result.ok || !result.company) {
         setCompanyStatus(result.message ?? "Firma eklenemedi.");
@@ -536,14 +848,21 @@ export default function AdminPage() {
 
       setCompanies((prev) => [result.company!, ...prev]);
       setCompanyStatus("Firma başarıyla eklendi.");
-      setNewCompanyValues({ companyName: "", contactName: "", email: "", password: "" });
+      setNewCompanyValues({
+        companyName: "",
+        contactName: "",
+        email: "",
+        password: "",
+      });
     } catch {
       setCompanyStatus("Firma eklenirken hata oluştu.");
     }
   }
 
   async function onDeleteCompany(companyId: string) {
-    const confirmed = window.confirm("Bu firmayı silmek istediğinizden emin misiniz?");
+    const confirmed = window.confirm(
+      "Bu firmayı silmek istediğinizden emin misiniz?",
+    );
     if (!confirmed) return;
 
     try {
@@ -569,25 +888,29 @@ export default function AdminPage() {
     event.preventDefault();
     setVehicleStatus("");
 
-    if (!newVehicleValues.plate || !newVehicleValues.busType || !newVehicleValues.seatsTotal) {
+    if (
+      !newVehicleValues.plate ||
+      !newVehicleValues.busType ||
+      !newVehicleValues.seatsTotal
+    ) {
       setVehicleStatus("Plaka, araç tipi ve koltuk sayısı zorunludur.");
       return;
     }
 
     try {
-      const result = await apiRequest<{ ok: boolean; vehicle?: AdminVehicle; message?: string }>(
-        "/admin/vehicles",
-        "POST",
-        {
-          token,
-          vehicle: {
-            plate: newVehicleValues.plate,
-            busType: newVehicleValues.busType,
-            seatsTotal: Number(newVehicleValues.seatsTotal),
-            seatLayout: newVehicleValues.seatLayout,
-          },
+      const result = await apiRequest<{
+        ok: boolean;
+        vehicle?: AdminVehicle;
+        message?: string;
+      }>("/admin/vehicles", "POST", {
+        token,
+        vehicle: {
+          plate: newVehicleValues.plate,
+          busType: newVehicleValues.busType,
+          seatsTotal: Number(newVehicleValues.seatsTotal),
+          seatLayout: newVehicleValues.seatLayout,
         },
-      );
+      });
 
       if (!result.ok || !result.vehicle) {
         setVehicleStatus(result.message ?? "Araç eklenemedi.");
@@ -596,18 +919,29 @@ export default function AdminPage() {
 
       setVehicles((prev) => [result.vehicle!, ...prev]);
       setVehicleStatus("Araç başarıyla eklendi.");
-      setNewVehicleValues({ plate: "", busType: "", seatsTotal: "40", seatLayout: "2+2" });
+      setNewVehicleValues({
+        plate: "",
+        busType: "",
+        seatsTotal: "40",
+        seatLayout: "2+2",
+      });
     } catch {
       setVehicleStatus("Araç eklenirken hata oluştu.");
     }
   }
 
   async function onDeleteVehicle(vehicleId: string) {
-    const confirmed = window.confirm("Bu aracı silmek istediğinizden emin misiniz?");
+    const confirmed = window.confirm(
+      "Bu aracı silmek istediğinizden emin misiniz?",
+    );
     if (!confirmed) return;
 
     try {
-      const result = await apiRequest<{ ok: boolean; message?: string }>(`/admin/vehicles/${vehicleId}`, "DELETE", { token });
+      const result = await apiRequest<{ ok: boolean; message?: string }>(
+        `/admin/vehicles/${vehicleId}`,
+        "DELETE",
+        { token },
+      );
       if (!result.ok) {
         setVehicleStatus(result.message ?? "Araç silinemedi.");
         return;
@@ -620,17 +954,40 @@ export default function AdminPage() {
   }
 
   const companyOptions = useMemo(() => {
-    const companies = Array.from(new Set(trips.map((t) => t.company).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b, "tr")
-    );
+    const companies = Array.from(
+      new Set(trips.map((t) => t.company).filter(Boolean)),
+    ).sort((a, b) => a.localeCompare(b, "tr"));
     return ["all", ...companies];
   }, [trips]);
 
+  const approvedCompanyOptions = useMemo(
+    () => companies.filter((company) => company.status === "approved"),
+    [companies],
+  );
+
+  const tripVehicleOptions = useMemo(() => {
+    if (role === "super-admin") {
+      if (!newTripValues.companyId) {
+        return [] as AdminVehicle[];
+      }
+      return vehicles.filter(
+        (vehicle) => vehicle.companyId === newTripValues.companyId,
+      );
+    }
+
+    return vehicles;
+  }, [newTripValues.companyId, role, vehicles]);
+
   const filteredTrips = useMemo(() => {
     return trips.filter((trip) => {
-      const companyMatch = selectedCompany === "all" || trip.company === selectedCompany;
+      const companyMatch =
+        selectedCompany === "all" || trip.company === selectedCompany;
       const term = normalize(searchTerm);
-      const searchable = normalize([trip.id, trip.tripCode ?? "", trip.company, trip.from, trip.to].join(" "));
+      const searchable = normalize(
+        [trip.id, trip.tripCode ?? "", trip.company, trip.from, trip.to].join(
+          " ",
+        ),
+      );
       const matchesSearch = !term || searchable.includes(term);
       const dayOffset = daysFromToday(trip.departureDate);
       const matchesFilter =
@@ -642,32 +999,104 @@ export default function AdminPage() {
     });
   }, [filterWindow, searchTerm, selectedCompany, trips]);
 
-  const visibleMenuItems = sectionConfig.filter((item) => roleConfig[role].allowedSections.includes(item.key));
+  const visibleMenuItems = sectionConfig.filter((item) =>
+    roleConfig[role].allowedSections.includes(item.key),
+  );
 
   if (!token) {
     return (
-      <Box sx={{ minHeight: "100vh", bgcolor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Paper elevation={0} sx={{ p: 5, maxWidth: 420, width: "100%", borderRadius: 2, border: "1px solid #e2e8f0", textAlign: "center" }}>
-          <Box sx={{ width: 44, height: 44, bgcolor: "#002D62", borderRadius: 1, mx: "auto", mb: 2 }} />
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, color: "#0f172a" }}>Near East Way Yönetim</Typography>
-          <Typography sx={{ color: "#64748b", mb: 4, fontSize: "0.9rem" }}>Kurumsal sisteme giriş yapın</Typography>
-          <Box component="form" onSubmit={onLogin} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "#f1f5f9",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            p: 5,
+            maxWidth: 420,
+            width: "100%",
+            borderRadius: 2,
+            border: "1px solid #e2e8f0",
+            textAlign: "center",
+          }}
+        >
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              bgcolor: "#002D62",
+              borderRadius: 1,
+              mx: "auto",
+              mb: 2,
+            }}
+          />
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 800, mb: 0.5, color: "#0f172a" }}
+          >
+            Near East Way Yönetim
+          </Typography>
+          <Typography sx={{ color: "#64748b", mb: 4, fontSize: "0.9rem" }}>
+            Kurumsal sisteme giriş yapın
+          </Typography>
+          <Box
+            component="form"
+            onSubmit={onLogin}
+            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          >
             <TextField
               fullWidth
-              label={role === "company-admin" ? "Firma E-posta" : "Kullanıcı Adı"}
-              placeholder={role === "company-admin" ? "ornek@firma.com" : "admin"}
+              label={
+                role === "company-admin" ? "Firma E-posta" : "Kullanıcı Adı"
+              }
+              placeholder={
+                role === "company-admin" ? "ornek@firma.com" : "admin"
+              }
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
             />
-            <TextField fullWidth select label="Erişim Yetkisi" value={role} onChange={(e) => setRole(e.target.value as AdminRole)}>
+            <TextField
+              fullWidth
+              select
+              label="Erişim Yetkisi"
+              value={role}
+              onChange={(e) => setRole(e.target.value as AdminRole)}
+            >
               {roleOptions.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
               ))}
             </TextField>
-            <TextField fullWidth label="Şifre" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            {loginError && <Typography sx={{ color: "#dc2626", fontSize: "0.85rem" }}>{loginError}</Typography>}
-            <Button type="submit" variant="contained" sx={{ height: 48, bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, fontWeight: 700, textTransform: "none" }}>
+            <TextField
+              fullWidth
+              label="Şifre"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            {loginError && (
+              <Typography sx={{ color: "#dc2626", fontSize: "0.85rem" }}>
+                {loginError}
+              </Typography>
+            )}
+            <Button
+              type="submit"
+              variant="contained"
+              sx={{
+                height: 48,
+                bgcolor: "#002D62",
+                "&:hover": { bgcolor: "#001f44" },
+                fontWeight: 700,
+                textTransform: "none",
+              }}
+            >
               Giriş Yap
             </Button>
           </Box>
@@ -676,11 +1105,12 @@ export default function AdminPage() {
     );
   }
 
- return (
+  return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
-    
       <Drawer
-        variant="permanent"
+        variant="temporary"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
@@ -692,16 +1122,38 @@ export default function AdminPage() {
             borderRight: "none",
           },
         }}
+        ModalProps={{
+          keepMounted: true,
+        }}
       >
         <Box sx={{ p: 3, pb: 2 }}>
-          <Typography sx={{ fontSize: "1.15rem", fontWeight: 800, letterSpacing: "-0.02em", color: "#ffffff" }}>
+          <Typography
+            sx={{
+              fontSize: "1.15rem",
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: "#ffffff",
+            }}
+          >
             Near East Way
           </Typography>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mt: 0.5 }}>Yönetim Portalı</Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mt: 0.5 }}>
+            Yönetim Portalı
+          </Typography>
         </Box>
         <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
         <Box sx={{ px: 1.5, pt: 2, pb: 1 }}>
-          <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", px: 1.5, mb: 1 }}>
+          <Typography
+            sx={{
+              fontSize: "0.7rem",
+              fontWeight: 700,
+              color: "#475569",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              px: 1.5,
+              mb: 1,
+            }}
+          >
             {roleConfig[role].label}
           </Typography>
         </Box>
@@ -712,11 +1164,19 @@ export default function AdminPage() {
                 onClick={() => setActiveSection(item.key)}
                 sx={{
                   borderRadius: 1.5,
-                  bgcolor: activeSection === item.key ? "rgba(255,255,255,0.1)" : "transparent",
+                  bgcolor:
+                    activeSection === item.key
+                      ? "rgba(255,255,255,0.1)"
+                      : "transparent",
                   "&:hover": { bgcolor: "rgba(255,255,255,0.07)" },
                 }}
               >
-                <ListItemIcon sx={{ color: activeSection === item.key ? "#ffffff" : "#64748b", minWidth: 38 }}>
+                <ListItemIcon
+                  sx={{
+                    color: activeSection === item.key ? "#ffffff" : "#64748b",
+                    minWidth: 38,
+                  }}
+                >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -726,7 +1186,8 @@ export default function AdminPage() {
                       sx: {
                         fontSize: "0.9rem",
                         fontWeight: activeSection === item.key ? 600 : 400,
-                        color: activeSection === item.key ? "#ffffff" : "#94a3b8",
+                        color:
+                          activeSection === item.key ? "#ffffff" : "#94a3b8",
                       },
                     },
                   }}
@@ -737,124 +1198,310 @@ export default function AdminPage() {
         </List>
       </Drawer>
 
-      {/* MAIN CONTENT */}
-      <Box component="main" sx={{ flexGrow: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        {/* TOP BAR */}
-        <AppBar position="sticky" elevation={0} sx={{ bgcolor: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>
-          <Toolbar sx={{ justifyContent: "space-between", minHeight: "68px !important" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1, maxWidth: 380 }}>
-              <SearchRoundedIcon sx={{ color: "#94a3b8" }} />
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            p: 2,
+            bgcolor: "#ffffff",
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} sx={{ color: "#0f172a" }}>
+            <MenuIcon />
+          </IconButton>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flex: 1,
+              maxWidth: 380,
+            }}
+          >
+            <SearchRoundedIcon sx={{ color: "#94a3b8" }} />
+            <TextField
+              variant="standard"
+              placeholder="Sefer veya firma ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              fullWidth
+              slotProps={{
+                input: { disableUnderline: true, sx: { fontSize: "0.9rem" } },
+              }}
+            />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {role === "super-admin" && (
               <TextField
-                variant="standard"
-                placeholder="Sefer veya firma ara..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                fullWidth
-                slotProps={{ input: { disableUnderline: true, sx: { fontSize: "0.9rem" } } }}
-              />
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {role === "super-admin" && (
-                <TextField
-                  select
-                  size="small"
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                  sx={{ minWidth: 150 }}
-                >
-                  {companyOptions.map((opt) => (
-                    <MenuItem key={opt} value={opt}>{opt === "all" ? "Tüm Firmalar" : opt}</MenuItem>
-                  ))}
-                </TextField>
-              )}
-              <IconButton sx={{ color: "#64748b" }}><NotificationsNoneRoundedIcon /></IconButton>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pl: 2, borderLeft: "1px solid #e2e8f0" }}>
-                <Avatar sx={{ width: 32, height: 32, bgcolor: "#002D62", fontSize: "0.85rem" }}>A</Avatar>
-                <Box sx={{ display: { xs: "none", sm: "block" } }}>
-                  <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, lineHeight: 1.2 }}>{username}</Typography>
-                  <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>{roleConfig[role].label}</Typography>
+                select
+                size="small"
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                sx={{ minWidth: 150 }}
+              >
+                {companyOptions.map((opt) => (
+                  <MenuItem key={opt} value={opt}>
+                    {opt === "all" ? "Tüm Firmalar" : opt}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <IconButton sx={{ color: "#64748b" }}>
+              <NotificationsNoneRoundedIcon />
+            </IconButton>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                pl: 2,
+                borderLeft: "1px solid #e2e8f0",
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "#002D62",
+                  fontSize: "0.85rem",
+                }}
+              >
+                A
+              </Avatar>
+              <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                <Typography
+                    sx={{
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {username}
+                  </Typography>
+                  <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    {roleConfig[role].label}
+                  </Typography>
                 </Box>
-                <Button size="small" color="error" onClick={onLogout} sx={{ textTransform: "none", fontWeight: 600, ml: 1 }}>
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={onLogout}
+                  sx={{ textTransform: "none", fontWeight: 600, ml: 1 }}
+                >
                   Çıkış
                 </Button>
               </Box>
             </Box>
-          </Toolbar>
-        </AppBar>
-
-        {/* PAGE BODY */}
+          </Box>
         <Box sx={{ p: { xs: 3, md: 4 }, flexGrow: 1 }}>
-
-          {/* ── OVERVIEW ── */}
           {activeSection === "overview" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Dashboard</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Sistem genel durumuna genel bakış.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Dashboard
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Sistem genel durumuna genel bakış.
+              </Typography>
 
-              {/* METRICS GRID */}
-              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", xl: "repeat(4, 1fr)" }, mb: 4 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 3,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                    xl: "repeat(4, 1fr)",
+                  },
+                  mb: 4,
+                }}
+              >
                 {[
-                  { label: "Toplam Rezervasyon", value: overview?.metrics.totalBookings ?? 0,  },
-                  { label: "Aktif Müşteri", value: overview?.metrics.activeUsers ?? 0,   },
-                  { label: "Aktif Rota", value: overview?.metrics.busRoutes ?? 0,  },
-                  { label: "Toplam Gelir", value: formatCurrency(overview?.metrics.revenue ?? 0)  },
+                  {
+                    label: "Toplam Rezervasyon",
+                    value: overview?.metrics.totalBookings ?? 0,
+                  },
+                  {
+                    label: "Aktif Müşteri",
+                    value: overview?.metrics.activeUsers ?? 0,
+                  },
+                  {
+                    label: "Aktif Rota",
+                    value: overview?.metrics.busRoutes ?? 0,
+                  },
+                  {
+                    label: "Toplam Gelir",
+                    value: formatCurrency(overview?.metrics.revenue ?? 0),
+                  },
                 ].map((card) => (
-                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                  <Paper
+                    key={card.label}
+                    elevation={0}
+                    sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: "#64748b",
+                        mb: 1,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
                       {card.label}
                     </Typography>
-                    <Typography sx={{ fontSize: "1.9rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "1.9rem",
+                        fontWeight: 800,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {card.value}
+                    </Typography>
                   </Paper>
                 ))}
               </Box>
 
-              {/* RECENT TRIPS TABLE */}
-              <Typography sx={{ fontWeight: 700, color: "#0f172a", mb: 2 }}>Son Seferler</Typography>
-              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <Typography sx={{ fontWeight: 700, color: "#0f172a", mb: 2 }}>
+                Son Seferler
+              </Typography>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}
+              >
                 <Table>
                   <TableHead sx={{ bgcolor: "#f8fafc" }}>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>ID</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Firma</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Güzergah</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Tarih</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Fiyat</TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        ID
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Firma
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Güzergah
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Tarih
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Fiyat
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(overview?.recentBookings ?? trips).slice(0, 8).map((trip, index) => {
-                      const anyTrip = trip as AdminTrip & {
-                        bookingCode?: string;
-                        route?: string;
-                        travelDate?: string;
-                        totalPrice?: number;
-                      };
-                      const rowKey =
-                        anyTrip.id ??
-                        anyTrip.tripCode ??
-                        anyTrip.bookingCode ??
-                        `${anyTrip.company ?? "unknown"}-${anyTrip.departureDate ?? anyTrip.travelDate ?? "na"}-${index}`;
-                      const routeLabel =
-                        anyTrip.route ?? `${anyTrip.from ?? "-"} → ${anyTrip.to ?? "-"}`;
-                      const dateLabel = anyTrip.departureDate ?? anyTrip.travelDate ?? "-";
-                      const timeLabel = anyTrip.departureTime ?? "";
-                      const amount = anyTrip.price ?? anyTrip.totalPrice ?? 0;
+                    {(overview?.recentBookings ?? trips)
+                      .slice(0, 8)
+                      .map((trip, index) => {
+                        const anyTrip = trip as AdminTrip & {
+                          bookingCode?: string;
+                          route?: string;
 
-                      return (
-                        <TableRow key={rowKey} hover>
-                          <TableCell sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#002D62" }}>
-                            {anyTrip.tripCode ?? anyTrip.id ?? anyTrip.bookingCode ?? "-"}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.85rem" }}>{anyTrip.company ?? "-"}</TableCell>
-                          <TableCell sx={{ fontSize: "0.85rem", fontWeight: 600 }}>{routeLabel}</TableCell>
-                          <TableCell sx={{ fontSize: "0.82rem", color: "#64748b" }}>{dateLabel} {timeLabel}</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 700 }}>₺{amount}</TableCell>
-                        </TableRow>
-                      );
-                    })}
+                          travelDate?: string;
+                          totalPrice?: number;
+                        };
+                        const rowKey =
+                          anyTrip.id ??
+                          anyTrip.tripCode ??
+                          anyTrip.bookingCode ??
+                          `${anyTrip.company ?? "unknown"}-${anyTrip.departureDate ?? anyTrip.travelDate ?? "na"}-${index}`;
+                        const routeLabel =
+                          anyTrip.route ??
+                          `${anyTrip.from ?? "-"} → ${anyTrip.to ?? "-"}`;
+                        const dateLabel =
+                          anyTrip.departureDate ?? anyTrip.travelDate ?? "-";
+                        const timeLabel = anyTrip.departureTime ?? "";
+                        const amount = anyTrip.price ?? anyTrip.totalPrice ?? 0;
+
+                        return (
+                          <TableRow key={rowKey} hover>
+                            <TableCell
+                              sx={{
+                                fontSize: "0.82rem",
+                                fontWeight: 600,
+                                color: "#002D62",
+                              }}
+                            >
+                              {anyTrip.tripCode ??
+                                anyTrip.id ??
+                                anyTrip.bookingCode ??
+                                "-"}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: "0.85rem" }}>
+                              {anyTrip.company ?? "-"}
+                            </TableCell>
+                            <TableCell
+                              sx={{ fontSize: "0.85rem", fontWeight: 600 }}
+                            >
+                              {routeLabel}
+                            </TableCell>
+                            <TableCell
+                              sx={{ fontSize: "0.82rem", color: "#64748b" }}
+                            >
+                              {dateLabel} {timeLabel}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700 }}>
+                              ₺{amount}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     {(overview?.recentBookings ?? trips).length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>Henüz sefer kaydı yok.</TableCell>
+                        <TableCell
+                          colSpan={5}
+                          align="center"
+                          sx={{ py: 4, color: "#94a3b8" }}
+                        >
+                          Henüz sefer kaydı yok.
+                        </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -863,89 +1510,201 @@ export default function AdminPage() {
             </Box>
           )}
 
-          {/* ── TRIPS ── */}
           {activeSection === "trips" && (
             <Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", mb: 3, flexWrap: "wrap", gap: 2 }}>
-                <Box>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Sefer Yönetimi</Typography>
-                  <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>Sistemdeki seferleri listeleyin ve yönetin.</Typography>
-                </Box>
-                <Button
-                  variant="contained"
-                  startIcon={<AddCircleOutlineOutlinedIcon />}
-                  onClick={() => setNewTripOpen((prev) => !prev)}
-                  sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
-                >
-                  {newTripOpen ? "Formu Gizle" : role === "company-admin" ? "Yeni Sefer (Onaya Gönder)" : "Yeni Sefer Ekle"}
-                </Button>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 3,
+                  flexWrap: "wrap",
+                  gap: 2,
+                }}
+              >
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+                    >
+                      Sefer Yönetimi
+                    </Typography>
+                    <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>
+                      Sistemdeki seferleri listeleyin ve yönetin.
+                    </Typography>
+                  </Box>
+                  {role !== "super-admin" && (
+                    <Button
+                      variant="contained"
+                      startIcon={<AddCircleOutlineOutlinedIcon />}
+                      onClick={() => router.push("/admin/create-trip")}
+                      sx={{
+                        bgcolor: "#002D62",
+                        "&:hover": { bgcolor: "#001f44" },
+                        textTransform: "none",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Yeni Sefer Oluştur
+                    </Button>
+                  )}
               </Box>
 
-              {newTripOpen && (
-                <Paper elevation={0} sx={{ p: 3, mb: 3, border: "1px solid #e2e8f0", borderRadius: 2, bgcolor: "#ffffff" }}>
-                  <Typography sx={{ fontWeight: 700, color: "#0f172a", mb: 2 }}>Yeni Sefer Oluştur</Typography>
-                  <Box component="form" onSubmit={onCreateTrip} sx={{ display: "grid", gap: 2 }}>
-                    {role === "super-admin" && (
-                      <TextField
-                        label="Firma"
-                        value={newTripValues.company}
-                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, company: event.target.value }))}
-                        fullWidth
-                      />
-                    )}
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                      <TextField
-                        label="Nereden"
-                        value={newTripValues.from}
-                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, from: event.target.value }))}
-                        fullWidth
-                      />
-                      <TextField
-                        label="Nereye"
-                        value={newTripValues.to}
-                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, to: event.target.value }))}
-                        fullWidth
-                      />
-                    </Box>
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                      <TextField
-                        label="Tarih"
-                        type="date"
-                        value={newTripValues.departureDate}
-                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, departureDate: event.target.value }))}
-                        slotProps={{ inputLabel: { shrink: true } }}
-                        fullWidth
-                      />
-                      <TextField
-                        label="Saat"
-                        type="time"
-                        value={newTripValues.departureTime}
-                        onChange={(event) => setNewTripValues((prev) => ({ ...prev, departureTime: event.target.value }))}
-                        slotProps={{ inputLabel: { shrink: true } }}
-                        fullWidth
-                      />
-                    </Box>
-                    <TextField
-                      label="Fiyat"
-                      type="number"
-                      value={newTripValues.price}
-                      onChange={(event) => setNewTripValues((prev) => ({ ...prev, price: event.target.value }))}
-                      fullWidth
-                    />
-                    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                      <Button type="submit" variant="contained" sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}>
-                        Sefer Oluştur
-                      </Button>
-                      <Button type="button" variant="outlined" onClick={() => setNewTripOpen(false)} sx={{ textTransform: "none", fontWeight: 600 }}>
-                        İptal
-                      </Button>
-                    </Box>
-                    {tripStatus && (
-                      <Typography sx={{ color: tripStatus.includes("başarıyla") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
-                        {tripStatus}
+              {role === "super-admin" && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    mb: 3,
+                    border: "1px solid #dbe5f3",
+                    borderRadius: 2,
+                    bgcolor: "#f8fbff",
+                  }}
+                >
+                
+                </Paper>
+              )}
+
+              {role === "super-admin" && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    mb: 3,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 2,
+                    bgcolor: "#ffffff",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 2,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography sx={{ fontWeight: 700, color: "#0f172a" }}>
+                        Onay Bekleyen Seferler
                       </Typography>
-                    )}
+                      {pendingTrips.length > 0 && (
+                        <Chip
+                          label={pendingTrips.length}
+                          size="small"
+                          color="warning"
+                          sx={{ fontWeight: 700 }}
+                        />
+                      )}
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => void fetchPendingTrips()}
+                      sx={{ textTransform: "none", fontWeight: 600 }}
+                    >
+                      Yenile
+                    </Button>
                   </Box>
+
+                  {tripApprovalStatus && (
+                    <Alert
+                      severity={
+                        tripApprovalStatus.includes("onaylandı")
+                          ? "success"
+                          : "info"
+                      }
+                      sx={{ mb: 2 }}
+                    >
+                      {tripApprovalStatus}
+                    </Alert>
+                  )}
+
+                  {pendingTrips.length === 0 ? (
+                    <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>
+                      Onay bekleyen sefer bulunmamaktadır.
+                    </Typography>
+                  ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 700 }}>
+                              Sefer Kodu
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>
+                              Firma
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>
+                              Güzergah
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>
+                              Tarih
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>
+                              Fiyat
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700 }}>
+                              İşlem
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {pendingTrips.map((trip) => (
+                            <TableRow key={trip.id} hover>
+                              <TableCell sx={{ fontWeight: 600 }}>
+                                {trip.tripCode ?? trip.id}
+                              </TableCell>
+                              <TableCell>{trip.company}</TableCell>
+                              <TableCell>
+                                {trip.from} → {trip.to}
+                              </TableCell>
+                              <TableCell>{trip.departureDate}</TableCell>
+                              <TableCell>₺{trip.price}</TableCell>
+                              <TableCell align="right">
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 1,
+                                    justifyContent: "flex-end",
+                                  }}
+                                >
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="success"
+                                    onClick={() =>
+                                      void onApproveTrip(trip.id, "approved")
+                                    }
+                                    sx={{
+                                      textTransform: "none",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Onayla
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() =>
+                                      void onApproveTrip(trip.id, "rejected")
+                                    }
+                                    sx={{
+                                      textTransform: "none",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Reddet
+                                  </Button>
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
                 </Paper>
               )}
 
@@ -955,12 +1714,15 @@ export default function AdminPage() {
                     key={btn.value}
                     size="small"
                     onClick={() => setFilterWindow(btn.value)}
-                    variant={filterWindow === btn.value ? "contained" : "outlined"}
+                    variant={
+                      filterWindow === btn.value ? "contained" : "outlined"
+                    }
                     sx={{
                       textTransform: "none",
                       fontWeight: 600,
                       boxShadow: "none",
-                      bgcolor: filterWindow === btn.value ? "#0f172a" : "transparent",
+                      bgcolor:
+                        filterWindow === btn.value ? "#0f172a" : "transparent",
                       color: filterWindow === btn.value ? "#fff" : "#64748b",
                       borderColor: "#cbd5e1",
                       "&:hover": { boxShadow: "none" },
@@ -971,41 +1733,173 @@ export default function AdminPage() {
                 ))}
               </Box>
 
-              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}
+              >
                 <Table sx={{ minWidth: 700 }}>
                   <TableHead sx={{ bgcolor: "#f8fafc" }}>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Sefer Kodu</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Firma</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Güzergah</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Tarih / Saat</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Durum</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>Tutar</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.82rem" }}>İşlem</TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Sefer Kodu
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Firma
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Güzergah
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Tarih / Saat
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Durum
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Tutar
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: 700,
+                          color: "#475569",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        İşlem
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {filteredTrips.map((trip) => (
                       <TableRow key={trip.id} hover>
-                        <TableCell sx={{ fontWeight: 600, color: "#002D62", fontSize: "0.82rem" }}>{trip.tripCode ?? trip.id}</TableCell>
-                        <TableCell sx={{ fontSize: "0.85rem" }}>{trip.company}</TableCell>
-                        <TableCell>
-                          <Typography sx={{ fontSize: "0.85rem", fontWeight: 600 }}>{trip.from} → {trip.to}</Typography>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            color: "#002D62",
+                            fontSize: "0.82rem",
+                          }}
+                        >
+                          {trip.tripCode ?? trip.id}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.85rem" }}>
+                          {trip.company}
                         </TableCell>
                         <TableCell>
-                          <Typography sx={{ fontSize: "0.82rem" }}>{trip.departureDate}</Typography>
-                          <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>{trip.departureTime}</Typography>
+                          <Typography
+                            sx={{ fontSize: "0.85rem", fontWeight: 600 }}
+                          >
+                            {trip.from} → {trip.to}
+                          </Typography>
                         </TableCell>
                         <TableCell>
-                          <Box sx={{
-                            display: "inline-block", px: 1.5, py: 0.5, borderRadius: 1, fontSize: "0.75rem", fontWeight: 700,
-                            bgcolor: trip.isActive === false ? "#fee2e2" : "#dcfce7",
-                            color: trip.isActive === false ? "#dc2626" : "#16a34a",
-                          }}>
-                            {trip.isActive === false ? "İptal" : "Aktif"}
+                          <Typography sx={{ fontSize: "0.82rem" }}>
+                            {trip.departureDate}
+                          </Typography>
+                          <Typography
+                            sx={{ fontSize: "0.75rem", color: "#64748b" }}
+                          >
+                            {trip.departureTime}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 0.5,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "inline-block",
+                                px: 1.5,
+                                py: 0.5,
+                                borderRadius: 1,
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                bgcolor:
+                                  trip.approvalStatus === "rejected"
+                                    ? "#fee2e2"
+                                    : trip.approvalStatus === "pending"
+                                      ? "#fef3c7"
+                                      : "#dcfce7",
+                                color:
+                                  trip.approvalStatus === "rejected"
+                                    ? "#dc2626"
+                                    : trip.approvalStatus === "pending"
+                                      ? "#d97706"
+                                      : "#16a34a",
+                              }}
+                            >
+                              {trip.approvalStatus === "rejected"
+                                ? "Reddedildi"
+                                : trip.approvalStatus === "pending"
+                                  ? "Onay Bekliyor"
+                                  : "Onaylı"}
+                            </Box>
+                            {trip.isActive === false && (
+                              <Box
+                                sx={{
+                                  display: "inline-block",
+                                  px: 1.5,
+                                  py: 0.5,
+                                  borderRadius: 1,
+                                  fontSize: "0.7rem",
+                                  fontWeight: 700,
+                                  bgcolor: "#fee2e2",
+                                  color: "#dc2626",
+                                }}
+                              >
+                                İptal
+                              </Box>
+                            )}
                           </Box>
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.9rem" }}>₺{trip.price}</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ fontWeight: 700, fontSize: "0.9rem" }}
+                        >
+                          ₺{trip.price}
+                        </TableCell>
                         <TableCell align="right">
                           <Button
                             size="small"
@@ -1021,7 +1915,11 @@ export default function AdminPage() {
                     ))}
                     {filteredTrips.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 5, color: "#94a3b8" }}>
+                        <TableCell
+                          colSpan={7}
+                          align="center"
+                          sx={{ py: 5, color: "#94a3b8" }}
+                        >
                           Kriterlere uygun sefer bulunamadı.
                         </TableCell>
                       </TableRow>
@@ -1032,24 +1930,75 @@ export default function AdminPage() {
             </Box>
           )}
 
-          {/* ── REQUESTS (super-admin only) ── */}
           {activeSection === "requests" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Firma Başvuruları</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Platforma katılmak isteyen onay bekleyen firmalar.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Firma Başvuruları
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Platforma katılmak isteyen onay bekleyen firmalar.
+              </Typography>
 
               {requests.length === 0 ? (
-                <Paper elevation={0} sx={{ p: 6, textAlign: "center", border: "1px dashed #cbd5e1", borderRadius: 2 }}>
-                  <Typography sx={{ color: "#64748b" }}>Bekleyen başvuru bulunmamaktadır.</Typography>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 6,
+                    textAlign: "center",
+                    border: "1px dashed #cbd5e1",
+                    borderRadius: 2,
+                  }}
+                >
+                  <Typography sx={{ color: "#64748b" }}>
+                    Bekleyen başvuru bulunmamaktadır.
+                  </Typography>
                 </Paper>
               ) : (
-                <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "repeat(3, 1fr)" } }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gap: 3,
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "1fr 1fr",
+                      lg: "repeat(3, 1fr)",
+                    },
+                  }}
+                >
                   {requests.map((req) => (
-                    <Paper key={req.id} elevation={0} sx={{ p: 3, border: "1px solid #e2e8f0", borderRadius: 2 }}>
-                      <Typography sx={{ fontSize: "1rem", fontWeight: 700, mb: 1 }}>{req.companyName}</Typography>
-                      <Typography sx={{ fontSize: "0.85rem", color: "#64748b", mb: 0.5 }}>Yetkili: {req.contactName}</Typography>
-                      <Typography sx={{ fontSize: "0.85rem", color: "#64748b", mb: 2 }}>İletişim: {req.email}</Typography>
-                      <Button variant="outlined" color="success" fullWidth onClick={() => onApprove(req.id)}>
+                    <Paper
+                      key={req.id}
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography
+                        sx={{ fontSize: "1rem", fontWeight: 700, mb: 1 }}
+                      >
+                        {req.companyName}
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: "0.85rem", color: "#64748b", mb: 0.5 }}
+                      >
+                        Yetkili: {req.contactName}
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: "0.85rem", color: "#64748b", mb: 2 }}
+                      >
+                        İletişim: {req.email}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        color="success"
+                        fullWidth
+                        onClick={() => onApprove(req.id)}
+                      >
                         Başvuruyu Onayla
                       </Button>
                     </Paper>
@@ -1061,34 +2010,85 @@ export default function AdminPage() {
 
           {activeSection === "users" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Kullanıcı Yönetimi</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Yolcu kayıtlarını ve müşteri davranışını görüntüleyin.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Kullanıcı Yönetimi
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Yolcu kayıtlarını ve müşteri davranışını görüntüleyin.
+              </Typography>
 
-              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, mb: 4 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 3,
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" },
+                  mb: 4,
+                }}
+              >
                 {[
                   { label: "Kullanıcı", value: adminUsers.length },
-                  { label: "Bireysel", value: adminUsers.filter((user) => !user.isCompany).length },
-                  { label: "Firma", value: adminUsers.filter((user) => user.isCompany).length },
+                  {
+                    label: "Bireysel",
+                    value: adminUsers.filter((user) => !user.isCompany).length,
+                  },
+                  {
+                    label: "Firma",
+                    value: adminUsers.filter((user) => user.isCompany).length,
+                  },
                 ].map((card) => (
-                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                  <Paper
+                    key={card.label}
+                    elevation={0}
+                    sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: "#64748b",
+                        mb: 1,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
                       {card.label}
                     </Typography>
-                    <Typography sx={{ fontSize: "1.9rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "1.9rem",
+                        fontWeight: 800,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {card.value}
+                    </Typography>
                   </Paper>
                 ))}
               </Box>
 
               {adminDataLoading ? (
-                <Paper elevation={0} sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <Paper
+                  elevation={0}
+                  sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2 }}
+                >
                   <Typography>Kullanıcı verileri yükleniyor...</Typography>
                 </Paper>
               ) : adminUsers.length === 0 ? (
-                <Paper elevation={0} sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <Paper
+                  elevation={0}
+                  sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2 }}
+                >
                   <Typography>Henüz kullanıcı bulunamadı.</Typography>
                 </Paper>
               ) : (
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+                <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}
+                >
                   <Table>
                     <TableHead sx={{ bgcolor: "#f8fafc" }}>
                       <TableRow>
@@ -1096,15 +2096,53 @@ export default function AdminPage() {
                         <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Tip</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Kayıt</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>
+                          İşlem
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {adminUsers.map((user) => (
                         <TableRow key={user.id} hover>
-                          <TableCell sx={{ fontWeight: 600 }}>{user.name || "Adı yok"}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>
+                            {user.name || "Adı yok"}
+                          </TableCell>
                           <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.isCompany ? "Firma" : "Bireysel"}</TableCell>
-                          <TableCell>{new Date(user.createdAt).toLocaleDateString("tr-TR")}</TableCell>
+                          <TableCell>
+                            {user.isCompany ? "Firma" : "Bireysel"}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(user.createdAt).toLocaleDateString(
+                              "tr-TR",
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Box
+                              sx={{
+                                display: "flex",
+                                gap: 1,
+                                justifyContent: "flex-end",
+                              }}
+                            >
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => openEditUser(user)}
+                                sx={{ textTransform: "none", fontWeight: 600 }}
+                              >
+                                Düzenle
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                onClick={() => void onDeleteUser(user.id)}
+                                sx={{ textTransform: "none", fontWeight: 600 }}
+                              >
+                                Sil
+                              </Button>
+                            </Box>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1114,60 +2152,261 @@ export default function AdminPage() {
             </Box>
           )}
 
+          <Dialog
+            open={editUserOpen}
+            onClose={() => setEditUserOpen(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle sx={{ fontWeight: 700 }}>
+              Kullanıcı Bilgilerini Düzenle
+            </DialogTitle>
+            <DialogContent>
+              <Box component="form" onSubmit={onUpdateUser} sx={{ mt: 1 }}>
+                <TextField
+                  fullWidth
+                  label="Ad Soyad"
+                  value={editUserValues.name}
+                  onChange={(e) =>
+                    setEditUserValues({
+                      ...editUserValues,
+                      name: e.target.value,
+                    })
+                  }
+                  sx={{ mb: 2 }}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="E-posta"
+                  type="email"
+                  value={editUserValues.email}
+                  onChange={(e) =>
+                    setEditUserValues({
+                      ...editUserValues,
+                      email: e.target.value,
+                    })
+                  }
+                  sx={{ mb: 2 }}
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Telefon"
+                  value={editUserValues.phone}
+                  onChange={(e) =>
+                    setEditUserValues({
+                      ...editUserValues,
+                      phone: e.target.value,
+                    })
+                  }
+                  sx={{ mb: 2 }}
+                  placeholder="+90 5XX XXX XX XX"
+                />
+                {editUserStatus && (
+                  <Alert
+                    severity={
+                      editUserStatus.includes("başarıyla") ? "success" : "error"
+                    }
+                    sx={{ mb: 2 }}
+                  >
+                    {editUserStatus}
+                  </Alert>
+                )}
+                <DialogActions>
+                  <Button
+                    onClick={() => setEditUserOpen(false)}
+                    sx={{ textTransform: "none" }}
+                  >
+                    İptal
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    sx={{ textTransform: "none", fontWeight: 600 }}
+                  >
+                    Kaydet
+                  </Button>
+                </DialogActions>
+              </Box>
+            </DialogContent>
+          </Dialog>
+
           {activeSection === "reports" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Raporlar</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Gelir, rota ve şirket performansını backend raporlarıyla izleyin.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Raporlar
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Gelir, rota ve şirket performansını backend raporlarıyla
+                izleyin.
+              </Typography>
 
-              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, mb: 4 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 3,
+                  gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" },
+                  mb: 4,
+                }}
+              >
                 {[
-                  { label: "Toplam gelir", value: formatCurrency(revenueReport?.summary?.totalRevenue ?? overview?.metrics.revenue ?? 0) },
-                  { label: "Rezervasyon", value: revenueReport?.summary?.totalBookings ?? overview?.metrics.totalBookings ?? 0 },
-                  { label: "Ortalama bilet", value: formatCurrency(revenueReport?.summary?.averageTicket ?? 0) },
-                  { label: "Aktif rota", value: routeReport.length || overview?.metrics.busRoutes || 0 },
+                  {
+                    label: "Toplam gelir",
+                    value: formatCurrency(
+                      revenueReport?.summary?.totalRevenue ??
+                        overview?.metrics.revenue ??
+                        0,
+                    ),
+                  },
+                  {
+                    label: "Rezervasyon",
+                    value:
+                      revenueReport?.summary?.totalBookings ??
+                      overview?.metrics.totalBookings ??
+                      0,
+                  },
+                  {
+                    label: "Ortalama bilet",
+                    value: formatCurrency(
+                      revenueReport?.summary?.averageTicket ?? 0,
+                    ),
+                  },
+                  {
+                    label: "Aktif rota",
+                    value:
+                      routeReport.length || overview?.metrics.busRoutes || 0,
+                  },
                 ].map((card) => (
-                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                  <Paper
+                    key={card.label}
+                    elevation={0}
+                    sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: "#64748b",
+                        mb: 1,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
                       {card.label}
                     </Typography>
-                    <Typography sx={{ fontSize: "1.6rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "1.6rem",
+                        fontWeight: 800,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {card.value}
+                    </Typography>
                   </Paper>
                 ))}
               </Box>
 
-              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                  <Typography sx={{ fontWeight: 700, mb: 2 }}>Dönemsel Gelir</Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 3,
+                  gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+                }}
+              >
+                <Paper
+                  elevation={0}
+                  sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+                >
+                  <Typography sx={{ fontWeight: 700, mb: 2 }}>
+                    Dönemsel Gelir
+                  </Typography>
                   <Box sx={{ display: "grid", gap: 1 }}>
-                    {(revenueReport?.byPeriod ?? overview?.revenueTrend ?? []).map((item, index) => {
-                      const periodLabel = "label" in item ? item.label : item.month;
+                    {(
+                      revenueReport?.byPeriod ??
+                      overview?.revenueTrend ??
+                      []
+                    ).map((item, index) => {
+                      const periodLabel =
+                        "label" in item ? item.label : item.month;
                       return (
-                        <Box key={`${periodLabel}-${index}`} sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                          <Typography sx={{ color: "#64748b" }}>{periodLabel}</Typography>
-                          <Typography sx={{ fontWeight: 700 }}>{formatCurrency(item.value)}</Typography>
+                        <Box
+                          key={`${periodLabel}-${index}`}
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 2,
+                          }}
+                        >
+                          <Typography sx={{ color: "#64748b" }}>
+                            {periodLabel}
+                          </Typography>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            {formatCurrency(item.value)}
+                          </Typography>
                         </Box>
                       );
                     })}
                   </Box>
                 </Paper>
 
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                  <Typography sx={{ fontWeight: 700, mb: 2 }}>En Çok Kullanılan Rotalar</Typography>
+                <Paper
+                  elevation={0}
+                  sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+                >
+                  <Typography sx={{ fontWeight: 700, mb: 2 }}>
+                    En Çok Kullanılan Rotalar
+                  </Typography>
                   <Box sx={{ display: "grid", gap: 1 }}>
-                    {(routeReport.length ? routeReport : (overview?.popularRoutes ?? []).map((route) => ({ route: route.label, bookings: route.value, revenue: 0, passengers: 0 }))).map((item) => (
-                      <Box key={item.route} sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                        <Typography sx={{ color: "#64748b" }}>{item.route}</Typography>
-                        <Typography sx={{ fontWeight: 700 }}>{item.bookings} rezervasyon</Typography>
+                    {(routeReport.length
+                      ? routeReport
+                      : (overview?.popularRoutes ?? []).map((route) => ({
+                          route: route.label,
+                          bookings: route.value,
+                          revenue: 0,
+                          passengers: 0,
+                        }))
+                    ).map((item) => (
+                      <Box
+                        key={item.route}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 2,
+                        }}
+                      >
+                        <Typography sx={{ color: "#64748b" }}>
+                          {item.route}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {item.bookings} rezervasyon
+                        </Typography>
                       </Box>
                     ))}
                   </Box>
                 </Paper>
               </Box>
 
-              <Paper elevation={0} sx={{ mt: 3, p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                <Typography sx={{ fontWeight: 700, mb: 2 }}>Şirket Performansı</Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  mt: 3,
+                  p: 3,
+                  borderRadius: 2,
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>
+                  Şirket Performansı
+                </Typography>
                 {companyReport.length === 0 ? (
-                  <Typography sx={{ color: "#64748b" }}>Şirket raporu bulunamadı.</Typography>
+                  <Typography sx={{ color: "#64748b" }}>
+                    Şirket raporu bulunamadı.
+                  </Typography>
                 ) : (
                   <TableContainer>
                     <Table>
@@ -1175,7 +2414,9 @@ export default function AdminPage() {
                         <TableRow>
                           <TableCell sx={{ fontWeight: 700 }}>Şirket</TableCell>
                           <TableCell sx={{ fontWeight: 700 }}>Sefer</TableCell>
-                          <TableCell sx={{ fontWeight: 700 }}>Rezervasyon</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>
+                            Rezervasyon
+                          </TableCell>
                           <TableCell sx={{ fontWeight: 700 }}>Yolcu</TableCell>
                           <TableCell sx={{ fontWeight: 700 }}>Araç</TableCell>
                           <TableCell sx={{ fontWeight: 700 }}>Gelir</TableCell>
@@ -1185,14 +2426,22 @@ export default function AdminPage() {
                         {companyReport.map((item) => (
                           <TableRow key={item.companyId}>
                             <TableCell>
-                              <Typography sx={{ fontWeight: 700 }}>{item.name}</Typography>
-                              <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>{item.routes.length} rota</Typography>
+                              <Typography sx={{ fontWeight: 700 }}>
+                                {item.name}
+                              </Typography>
+                              <Typography
+                                sx={{ fontSize: "0.78rem", color: "#64748b" }}
+                              >
+                                {item.routes.length} rota
+                              </Typography>
                             </TableCell>
                             <TableCell>{item.trips}</TableCell>
                             <TableCell>{item.bookings}</TableCell>
                             <TableCell>{item.passengers}</TableCell>
                             <TableCell>{item.vehicleCount}</TableCell>
-                            <TableCell>{formatCurrency(item.revenue)}</TableCell>
+                            <TableCell>
+                              {formatCurrency(item.revenue)}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1203,18 +2452,64 @@ export default function AdminPage() {
                 {companyReport.length > 0 && (
                   <Box sx={{ mt: 3, display: "grid", gap: 2 }}>
                     {companyReport.map((item) => (
-                      <Paper key={`${item.companyId}-routes`} elevation={0} sx={{ p: 2.25, borderRadius: 2, border: "1px solid #eef2f7", boxShadow: "none" }}>
-                        <Typography sx={{ fontWeight: 700, mb: 1 }}>{item.name} rota detayları</Typography>
+                      <Paper
+                        key={`${item.companyId}-routes`}
+                        elevation={0}
+                        sx={{
+                          p: 2.25,
+                          borderRadius: 2,
+                          border: "1px solid #eef2f7",
+                          boxShadow: "none",
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 700, mb: 1 }}>
+                          {item.name} rota detayları
+                        </Typography>
                         {item.routes.length === 0 ? (
-                          <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Bu firmaya ait kayıtlı rota bulunamadı.</Typography>
+                          <Typography
+                            sx={{ fontSize: "0.84rem", color: "#64748b" }}
+                          >
+                            Bu firmaya ait kayıtlı rota bulunamadı.
+                          </Typography>
                         ) : (
                           <Box sx={{ display: "grid", gap: 1 }}>
                             {item.routes.map((route) => (
-                              <Box key={`${item.companyId}-${route.route}-${route.price}`} sx={{ display: "grid", gap: 0.3, gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 1fr" }, alignItems: "center" }}>
-                                <Typography sx={{ fontSize: "0.86rem", color: "#0f172a", fontWeight: 600 }}>{route.route}</Typography>
-                                <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Fiyat: {formatCurrency(route.price)}</Typography>
-                                <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Yolcu: {route.passengers}</Typography>
-                                <Typography sx={{ fontSize: "0.84rem", color: "#64748b" }}>Araç: {route.vehicle}</Typography>
+                              <Box
+                                key={`${item.companyId}-${route.route}-${route.price}`}
+                                sx={{
+                                  display: "grid",
+                                  gap: 0.3,
+                                  gridTemplateColumns: {
+                                    xs: "1fr",
+                                    md: "2fr 1fr 1fr 1fr",
+                                  },
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Typography
+                                  sx={{
+                                    fontSize: "0.86rem",
+                                    color: "#0f172a",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {route.route}
+                                </Typography>
+                                <Typography
+                                  sx={{ fontSize: "0.84rem", color: "#64748b" }}
+                                >
+                                  Fiyat: {formatCurrency(route.price)}
+                                </Typography>
+                                <Typography
+                                  sx={{ fontSize: "0.84rem", color: "#64748b" }}
+                                >
+                                  Yolcu: {route.passengers}
+                                </Typography>
+                                <Typography
+                                  sx={{ fontSize: "0.84rem", color: "#64748b" }}
+                                >
+                                  Araç: {route.vehicle}
+                                </Typography>
                               </Box>
                             ))}
                           </Box>
@@ -1229,27 +2524,66 @@ export default function AdminPage() {
 
           {activeSection === "settings" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Ayarlar</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Yetki, şirket ve oturum özetleri.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Ayarlar
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Yetki, şirket ve oturum özetleri.
+              </Typography>
 
-              <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, mb: 4 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 3,
+                  gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+                  mb: 4,
+                }}
+              >
                 {[
                   { label: "Rol", value: role },
                   { label: "Oturum", value: token ? "Aktif" : "Pasif" },
                   { label: "Şirket", value: companies.length },
                 ].map((card) => (
-                  <Paper key={card.label} elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                    <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", mb: 1, letterSpacing: "0.06em" }}>
+                  <Paper
+                    key={card.label}
+                    elevation={0}
+                    sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: "#64748b",
+                        mb: 1,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
                       {card.label}
                     </Typography>
-                    <Typography sx={{ fontSize: "1.6rem", fontWeight: 800, color: "#0f172a" }}>{card.value}</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "1.6rem",
+                        fontWeight: 800,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {card.value}
+                    </Typography>
                   </Paper>
                 ))}
               </Box>
 
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+              <Paper
+                elevation={0}
+                sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0" }}
+              >
                 <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>
-                  Firma, sefer, rota ve araç yönetimi rolünüze göre ilgili sekmelerden yapılır.
+                  Firma, sefer, rota ve araç yönetimi rolünüze göre ilgili
+                  sekmelerden yapılır.
                 </Typography>
               </Paper>
             </Box>
@@ -1257,39 +2591,92 @@ export default function AdminPage() {
 
           {activeSection === "companies" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Firmalar</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Firma ekleme, listeleme ve silme işlemleri.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Firmalar
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Firma ekleme, listeleme ve silme işlemleri.
+              </Typography>
 
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
-                <Typography sx={{ fontWeight: 700, mb: 2 }}>Yeni Firma Ekle</Typography>
-                <Box component="form" onSubmit={onCreateCompany} sx={{ display: "grid", gap: 2 }}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 2,
+                  border: "1px solid #e2e8f0",
+                  mb: 3,
+                }}
+              >
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>
+                  Yeni Firma Ekle
+                </Typography>
+                <Box
+                  component="form"
+                  onSubmit={onCreateCompany}
+                  sx={{ display: "grid", gap: 2 }}
+                >
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                      gap: 2,
+                    }}
+                  >
                     <TextField
                       label="Firma Adı"
                       value={newCompanyValues.companyName}
-                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, companyName: event.target.value }))}
+                      onChange={(event) =>
+                        setNewCompanyValues((prev) => ({
+                          ...prev,
+                          companyName: event.target.value,
+                        }))
+                      }
                       fullWidth
                     />
                     <TextField
                       label="Yetkili"
                       value={newCompanyValues.contactName}
-                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, contactName: event.target.value }))}
+                      onChange={(event) =>
+                        setNewCompanyValues((prev) => ({
+                          ...prev,
+                          contactName: event.target.value,
+                        }))
+                      }
                       fullWidth
                     />
                   </Box>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                      gap: 2,
+                    }}
+                  >
                     <TextField
                       label="E-posta"
                       type="email"
                       value={newCompanyValues.email}
-                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, email: event.target.value }))}
+                      onChange={(event) =>
+                        setNewCompanyValues((prev) => ({
+                          ...prev,
+                          email: event.target.value,
+                        }))
+                      }
                       fullWidth
                     />
                     <TextField
                       label="Şifre (opsiyonel)"
                       type="password"
                       value={newCompanyValues.password}
-                      onChange={(event) => setNewCompanyValues((prev) => ({ ...prev, password: event.target.value }))}
+                      onChange={(event) =>
+                        setNewCompanyValues((prev) => ({
+                          ...prev,
+                          password: event.target.value,
+                        }))
+                      }
                       fullWidth
                     />
                   </Box>
@@ -1297,20 +2684,38 @@ export default function AdminPage() {
                     <Button
                       type="submit"
                       variant="contained"
-                      sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+                      sx={{
+                        bgcolor: "#002D62",
+                        "&:hover": { bgcolor: "#001f44" },
+                        textTransform: "none",
+                        fontWeight: 600,
+                      }}
                     >
                       Firma Ekle
                     </Button>
                   </Box>
                   {companyStatus && (
-                    <Typography sx={{ color: companyStatus.includes("başarı") || companyStatus.includes("silindi") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
+                    <Typography
+                      sx={{
+                        color:
+                          companyStatus.includes("başarı") ||
+                          companyStatus.includes("silindi")
+                            ? "#059669"
+                            : "#dc2626",
+                        fontSize: "0.9rem",
+                      }}
+                    >
                       {companyStatus}
                     </Typography>
                   )}
                 </Box>
               </Paper>
 
-              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}
+              >
                 <Table>
                   <TableHead sx={{ bgcolor: "#f8fafc" }}>
                     <TableRow>
@@ -1318,17 +2723,30 @@ export default function AdminPage() {
                       <TableCell sx={{ fontWeight: 700 }}>Yetkili</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Durum</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>İşlem</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                        İşlem
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {companies.map((company) => (
                       <TableRow key={company.id} hover>
-                        <TableCell sx={{ fontWeight: 700 }}>{company.companyName}</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>
+                          {company.companyName}
+                        </TableCell>
                         <TableCell>{company.contactName}</TableCell>
                         <TableCell>{company.email}</TableCell>
                         <TableCell>
-                          <Typography sx={{ fontSize: "0.84rem", fontWeight: 700, color: company.status === "approved" ? "#16a34a" : "#d97706" }}>
+                          <Typography
+                            sx={{
+                              fontSize: "0.84rem",
+                              fontWeight: 700,
+                              color:
+                                company.status === "approved"
+                                  ? "#16a34a"
+                                  : "#d97706",
+                            }}
+                          >
                             {company.status}
                           </Typography>
                         </TableCell>
@@ -1347,7 +2765,11 @@ export default function AdminPage() {
                     ))}
                     {companies.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>
+                        <TableCell
+                          colSpan={5}
+                          align="center"
+                          sx={{ py: 4, color: "#94a3b8" }}
+                        >
                           Kayıtlı firma bulunamadı.
                         </TableCell>
                       </TableRow>
@@ -1360,64 +2782,140 @@ export default function AdminPage() {
 
           {activeSection === "vehicles" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Araç Yönetimi</Typography>
-              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>Araç ekleyin, görüntüleyin ve kaldırın.</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Araç Yönetimi
+              </Typography>
+              <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
+                Araç ekleyin, görüntüleyin ve kaldırın.
+              </Typography>
 
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
-                <Typography sx={{ fontWeight: 700, mb: 2 }}>Yeni Araç Ekle</Typography>
-                <Box component="form" onSubmit={onCreateVehicle} sx={{ display: "grid", gap: 2 }}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                    <TextField
-                      label="Plaka"
-                      value={newVehicleValues.plate}
-                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, plate: event.target.value }))}
-                      fullWidth
-                    />
-                    <TextField
-                      label="Araç Tipi"
-                      value={newVehicleValues.busType}
-                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, busType: event.target.value }))}
-                      fullWidth
-                    />
-                  </Box>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                    <TextField
-                      label="Koltuk Sayısı"
-                      type="number"
-                      value={newVehicleValues.seatsTotal}
-                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, seatsTotal: event.target.value }))}
-                      fullWidth
-                    />
-                    <TextField
-                      label="Dizilim"
-                      select
-                      value={newVehicleValues.seatLayout}
-                      onChange={(event) => setNewVehicleValues((prev) => ({ ...prev, seatLayout: event.target.value as "2+2" | "2+1" | "1+1" }))}
-                      fullWidth
+              {role === "company-admin" ? (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: "1px solid #e2e8f0",
+                    mb: 3,
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 700, mb: 2 }}>
+                    Yeni Araç Ekle
+                  </Typography>
+                  <Box
+                    component="form"
+                    onSubmit={onCreateVehicle}
+                    sx={{ display: "grid", gap: 2 }}
+                  >
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        gap: 2,
+                      }}
                     >
-                      <MenuItem value="2+2">2+2</MenuItem>
-                      <MenuItem value="2+1">2+1</MenuItem>
-                      <MenuItem value="1+1">1+1</MenuItem>
-                    </TextField>
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+                      <TextField
+                        label="Plaka"
+                        value={newVehicleValues.plate}
+                        onChange={(event) =>
+                          setNewVehicleValues((prev) => ({
+                            ...prev,
+                            plate: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                      <TextField
+                        label="Araç Tipi"
+                        value={newVehicleValues.busType}
+                        onChange={(event) =>
+                          setNewVehicleValues((prev) => ({
+                            ...prev,
+                            busType: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        gap: 2,
+                      }}
                     >
-                      Araç Ekle
-                    </Button>
+                      <TextField
+                        label="Koltuk Sayısı"
+                        type="number"
+                        value={newVehicleValues.seatsTotal}
+                        onChange={(event) =>
+                          setNewVehicleValues((prev) => ({
+                            ...prev,
+                            seatsTotal: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                      <TextField
+                        label="Dizilim"
+                        select
+                        value={newVehicleValues.seatLayout}
+                        onChange={(event) =>
+                          setNewVehicleValues((prev) => ({
+                            ...prev,
+                            seatLayout: event.target.value as
+                              | "2+2"
+                              | "2+1"
+                              | "1+1",
+                          }))
+                        }
+                        fullWidth
+                      >
+                        <MenuItem value="2+2">2+2</MenuItem>
+                        <MenuItem value="2+1">2+1</MenuItem>
+                        <MenuItem value="1+1">1+1</MenuItem>
+                      </TextField>
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        sx={{
+                          bgcolor: "#002D62",
+                          "&:hover": { bgcolor: "#001f44" },
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Araç Ekle
+                      </Button>
+                    </Box>
+                    {vehicleStatus && (
+                      <Typography
+                        sx={{
+                          color:
+                            vehicleStatus.includes("başarı") ||
+                            vehicleStatus.includes("silindi")
+                              ? "#059669"
+                              : "#dc2626",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {vehicleStatus}
+                      </Typography>
+                    )}
                   </Box>
-                  {vehicleStatus && (
-                    <Typography sx={{ color: vehicleStatus.includes("başarı") || vehicleStatus.includes("silindi") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
-                      {vehicleStatus}
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
+                </Paper>
+              ) : null}
 
-              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}
+              >
                 <Table>
                   <TableHead sx={{ bgcolor: "#f8fafc" }}>
                     <TableRow>
@@ -1425,13 +2923,17 @@ export default function AdminPage() {
                       <TableCell sx={{ fontWeight: 700 }}>Tip</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Koltuk</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Dizilim</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>İşlem</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                        İşlem
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {vehicles.map((vehicle) => (
                       <TableRow key={vehicle.id} hover>
-                        <TableCell sx={{ fontWeight: 700 }}>{vehicle.plate}</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>
+                          {vehicle.plate}
+                        </TableCell>
                         <TableCell>{vehicle.busType}</TableCell>
                         <TableCell>{vehicle.seatsTotal}</TableCell>
                         <TableCell>{vehicle.seatLayout}</TableCell>
@@ -1450,7 +2952,11 @@ export default function AdminPage() {
                     ))}
                     {vehicles.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>
+                        <TableCell
+                          colSpan={5}
+                          align="center"
+                          sx={{ py: 4, color: "#94a3b8" }}
+                        >
                           Kayıtlı araç bulunamadı.
                         </TableCell>
                       </TableRow>
@@ -1463,78 +2969,145 @@ export default function AdminPage() {
 
           {activeSection === "route-management" && (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>Rota Yönetimi</Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}
+              >
+                Rota Yönetimi
+              </Typography>
               <Typography sx={{ color: "#64748b", fontSize: "0.9rem", mb: 4 }}>
                 Güzergahları ekleyin, listeleyin ve kaldırın.
               </Typography>
 
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid #e2e8f0", mb: 3 }}>
-                <Typography sx={{ fontWeight: 700, mb: 2 }}>Yeni Rota Ekle</Typography>
-                <Box component="form" onSubmit={onCreateRoute} sx={{ display: "grid", gap: 2 }}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                    <TextField
-                      label="Nereden"
-                      value={newRouteValues.from}
-                      onChange={(event) =>
-                        setNewRouteValues((prev) => ({ ...prev, from: event.target.value }))
-                      }
-                      fullWidth
-                    />
-                    <TextField
-                      label="Nereye"
-                      value={newRouteValues.to}
-                      onChange={(event) =>
-                        setNewRouteValues((prev) => ({ ...prev, to: event.target.value }))
-                      }
-                      fullWidth
-                    />
-                  </Box>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                    <TextField
-                      label="Temel Fiyat"
-                      type="number"
-                      value={newRouteValues.basePrice}
-                      onChange={(event) =>
-                        setNewRouteValues((prev) => ({ ...prev, basePrice: event.target.value }))
-                      }
-                      fullWidth
-                    />
-                    <TextField
-                      label="Süre (dk)"
-                      type="number"
-                      value={newRouteValues.durationMinutes}
-                      onChange={(event) =>
-                        setNewRouteValues((prev) => ({ ...prev, durationMinutes: event.target.value }))
-                      }
-                      fullWidth
-                    />
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      sx={{ bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+              {role === "company-admin" ? (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: "1px solid #e2e8f0",
+                    mb: 3,
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 700, mb: 2 }}>
+                    Yeni Rota Ekle
+                  </Typography>
+                  <Box
+                    component="form"
+                    onSubmit={onCreateRoute}
+                    sx={{ display: "grid", gap: 2 }}
+                  >
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        gap: 2,
+                      }}
                     >
-                      Rota Ekle
-                    </Button>
+                      <TextField
+                        label="Nereden"
+                        value={newRouteValues.from}
+                        onChange={(event) =>
+                          setNewRouteValues((prev) => ({
+                            ...prev,
+                            from: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                      <TextField
+                        label="Nereye"
+                        value={newRouteValues.to}
+                        onChange={(event) =>
+                          setNewRouteValues((prev) => ({
+                            ...prev,
+                            to: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        gap: 2,
+                      }}
+                    >
+                      <TextField
+                        label="Temel Fiyat"
+                        type="number"
+                        value={newRouteValues.basePrice}
+                        onChange={(event) =>
+                          setNewRouteValues((prev) => ({
+                            ...prev,
+                            basePrice: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                      <TextField
+                        label="Süre (dk)"
+                        type="number"
+                        value={newRouteValues.durationMinutes}
+                        onChange={(event) =>
+                          setNewRouteValues((prev) => ({
+                            ...prev,
+                            durationMinutes: event.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        sx={{
+                          bgcolor: "#002D62",
+                          "&:hover": { bgcolor: "#001f44" },
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Rota Ekle
+                      </Button>
+                    </Box>
+                    {routeStatus && (
+                      <Typography
+                        sx={{
+                          color:
+                            routeStatus.includes("başarı") ||
+                            routeStatus.includes("silindi")
+                              ? "#059669"
+                              : "#dc2626",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {routeStatus}
+                      </Typography>
+                    )}
                   </Box>
-                  {routeStatus && (
-                    <Typography sx={{ color: routeStatus.includes("başarı") || routeStatus.includes("silindi") ? "#059669" : "#dc2626", fontSize: "0.9rem" }}>
-                      {routeStatus}
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
+                </Paper>
+              ) : null}
 
-              <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}
+              >
                 <Table>
                   <TableHead sx={{ bgcolor: "#f8fafc" }}>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 700 }}>Nereden</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Nereye</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Temel Fiyat</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>
+                        Temel Fiyat
+                      </TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Süre</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>İşlem</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                        İşlem
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1559,7 +3132,11 @@ export default function AdminPage() {
                     ))}
                     {routes.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: "#94a3b8" }}>
+                        <TableCell
+                          colSpan={5}
+                          align="center"
+                          sx={{ py: 4, color: "#94a3b8" }}
+                        >
                           Kayıtlı rota bulunamadı.
                         </TableCell>
                       </TableRow>
@@ -1569,7 +3146,6 @@ export default function AdminPage() {
               </TableContainer>
             </Box>
           )}
-
         </Box>
       </Box>
     </Box>

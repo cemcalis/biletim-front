@@ -32,8 +32,8 @@ export default function CompanyRegisterPage() {
       return;
     }
 
-    if (password.trim().length < 6) {
-      setError("Şifre en az 6 karakter olmalıdır.");
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password.trim())) {
+      setError("Şifre en az 8 karakter olmalı ve harf ile rakam içermelidir.");
       return;
     }
 

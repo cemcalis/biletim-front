@@ -77,6 +77,10 @@ export default function AdminSettingsPage() {
       setPasswordError("Yeni şifre ve tekrarı eşleşmiyor.");
       return;
     }
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
+      setPasswordError("Yeni şifre en az 8 karakter olmalı ve harf ile rakam içermelidir.");
+      return;
+    }
 
     setPasswordLoading(true);
     const token = localStorage.getItem("admin_token") ?? "";

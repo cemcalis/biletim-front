@@ -38,7 +38,9 @@ const BENEFITS = [
     desc: "Seyahatinizle ilgili her konuda çağrı merkezimiz yanınızda.",
   },
   {
-    icon: <AssignmentReturnOutlinedIcon sx={{ fontSize: 28, color: "#002D62" }} />,
+    icon: (
+      <AssignmentReturnOutlinedIcon sx={{ fontSize: 28, color: "#002D62" }} />
+    ),
     title: "Kolay İptal ve İade",
     desc: "Satın aldığınız biletlerde sorunsuz iptal ve iade garantisi.",
   },
@@ -79,10 +81,22 @@ export default function HomePage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
-      <Box sx={{ bgcolor: "#002D62", color: "#ffffff", pb: { xs: 10, md: 14 } }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "#f8f9fa",
+      }}
+    >
+      <Box
+        sx={{ bgcolor: "#002D62", color: "#ffffff", pb: { xs: 10, md: 14 } }}
+      >
         <UserNavbar active="home" variant="hero" />
-        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 4, md: 8 } }}>
+        <Container
+          maxWidth="lg"
+          sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 4, md: 8 } }}
+        >
           <Typography
             component="h1"
             sx={{
@@ -104,7 +118,8 @@ export default function HomePage() {
               mb: 4,
             }}
           >
-            Yüzlerce firmanın seferlerini tek yerden karşılaştır, en uygun biletini al.
+            Yüzlerce firmanın seferlerini tek yerden karşılaştır, en uygun
+            biletini al.
           </Typography>
 
           <Paper
@@ -117,9 +132,13 @@ export default function HomePage() {
               border: "1px solid #e2e8f0",
             }}
           >
-            <Box sx={{display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-              <DirectionsBusIcon sx={{position:"sticky", color: "#002D62", fontSize: 20 }} />
-              <Typography sx={{ fontWeight: 700, color: "#002D62", fontSize: "0.95rem" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <DirectionsBusIcon
+                sx={{ position: "sticky", color: "#002D62", fontSize: 20 }}
+              />
+              <Typography
+                sx={{ fontWeight: 700, color: "#002D62", fontSize: "0.95rem" }}
+              >
                 Otobüs Bileti
               </Typography>
             </Box>
@@ -144,7 +163,9 @@ export default function HomePage() {
                     input: {
                       startAdornment: (
                         <InputAdornment position="start">
-                          <LocationOnOutlinedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
+                          <LocationOnOutlinedIcon
+                            sx={{ color: "#94a3b8", fontSize: 20 }}
+                          />
                         </InputAdornment>
                       ),
                     },
@@ -182,7 +203,9 @@ export default function HomePage() {
                     input: {
                       startAdornment: (
                         <InputAdornment position="start">
-                          <LocationOnOutlinedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
+                          <LocationOnOutlinedIcon
+                            sx={{ color: "#94a3b8", fontSize: 20 }}
+                          />
                         </InputAdornment>
                       ),
                     },
@@ -195,57 +218,69 @@ export default function HomePage() {
                   ))}
                 </TextField>
 
-                <Box sx={{ display: "flex", flexDirection: "column", minWidth: { md: 220 } }}>
-                    <>
-                      <TextField
-                        variant="outlined"
-                        label="Tarih"
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        fullWidth
-                        slotProps={{
-                          inputLabel: { shrink: true },
-                          input: {
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <CalendarMonthOutlinedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                              </InputAdornment>
-                            ),
-                          },
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    minWidth: { md: 220 },
+                  }}
+                >
+                  <>
+                    <TextField
+                      variant="outlined"
+                      label="Tarih"
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      fullWidth
+                      slotProps={{
+                        inputLabel: { shrink: true },
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <CalendarMonthOutlinedIcon
+                                sx={{ color: "#94a3b8", fontSize: 20 }}
+                              />
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                    <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                      <Chip
+                        label="Bugün"
+                        size="small"
+                        onClick={() => setDate(getToday())}
+                        sx={{
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontSize: "0.75rem",
+                          bgcolor:
+                            date === getToday() ? "#002D62" : "transparent",
+                          color: date === getToday() ? "#fff" : "#64748b",
+                          border: "1px solid",
+                          borderColor:
+                            date === getToday() ? "#002D62" : "#cbd5e1",
                         }}
                       />
-                      <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-                        <Chip
-                          label="Bugün"
-                          size="small"
-                          onClick={() => setDate(getToday())}
-                          sx={{
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: "0.75rem",
-                            bgcolor: date === getToday() ? "#002D62" : "transparent",
-                            color: date === getToday() ? "#fff" : "#64748b",
-                            border: "1px solid",
-                            borderColor: date === getToday() ? "#002D62" : "#cbd5e1",
-                          }}
-                        />
-                        <Chip
-                          label="Yarın"
-                          size="small"
-                          onClick={() => setDate(getTomorrow())}
-                          sx={{
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: "0.75rem",
-                            bgcolor: date === getTomorrow() ? "#002D62" : "transparent",
-                            color: date === getTomorrow() ? "#fff" : "#64748b",
-                            border: "1px solid",
-                            borderColor: date === getTomorrow() ? "#002D62" : "#cbd5e1",
-                          }}
-                        />
-                      </Box>
-                    </>
+                      <Chip
+                        label="Yarın"
+                        size="small"
+                        onClick={() => setDate(getTomorrow())}
+                        sx={{
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontSize: "0.75rem",
+                          bgcolor:
+                            date === getTomorrow() ? "#002D62" : "transparent",
+                          color: date === getTomorrow() ? "#fff" : "#64748b",
+                          border: "1px solid",
+                          borderColor:
+                            date === getTomorrow() ? "#002D62" : "#cbd5e1",
+                        }}
+                      />
+                    </Box>
+                  </>
                 </Box>
 
                 <Button
@@ -276,7 +311,13 @@ export default function HomePage() {
       <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 }, py: 8 }}>
         <Typography
           component="h2"
-          sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", textAlign: "center", mb: 4 }}
+          sx={{
+            fontSize: "1.4rem",
+            fontWeight: 800,
+            color: "#0f172a",
+            textAlign: "center",
+            mb: 4,
+          }}
         >
           Neden Near East Way?
         </Typography>
@@ -301,10 +342,19 @@ export default function HomePage() {
               }}
             >
               <Box sx={{ mb: 2 }}>{item.icon}</Box>
-              <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", mb: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  mb: 1,
+                }}
+              >
                 {item.title}
               </Typography>
-              <Typography sx={{ fontSize: "0.9rem", color: "#64748b", lineHeight: 1.7 }}>
+              <Typography
+                sx={{ fontSize: "0.9rem", color: "#64748b", lineHeight: 1.7 }}
+              >
                 {item.desc}
               </Typography>
             </Paper>
@@ -312,11 +362,23 @@ export default function HomePage() {
         </Box>
       </Container>
 
-      <Box sx={{ bgcolor: "#ffffff", py: 8, borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" }}>
+      <Box
+        sx={{
+          bgcolor: "#ffffff",
+          py: 8,
+          borderTop: "1px solid #e2e8f0",
+          borderBottom: "1px solid #e2e8f0",
+        }}
+      >
         <Container maxWidth="lg" sx={{ px: { xs: 2.5, sm: 4 } }}>
           <Typography
             component="h2"
-            sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", mb: 4 }}
+            sx={{
+              fontSize: "1.4rem",
+              fontWeight: 800,
+              color: "#0f172a",
+              mb: 4,
+            }}
           >
             Popüler Seferler
           </Typography>
@@ -324,7 +386,11 @@ export default function HomePage() {
             sx={{
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "1fr 1fr",
+                md: "repeat(3, 1fr)",
+              },
             }}
           >
             {POPULAR_ROUTES.map((route, i) => (
@@ -347,8 +413,12 @@ export default function HomePage() {
                   "&:hover": { borderColor: "#002D62", bgcolor: "#f8fafc" },
                 }}
               >
-                <DirectionsBusIcon sx={{ color: "#94a3b8", fontSize: 18, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, color: "#334155" }}>
+                <DirectionsBusIcon
+                  sx={{ color: "#94a3b8", fontSize: 18, flexShrink: 0 }}
+                />
+                <Typography
+                  sx={{ fontSize: "0.9rem", fontWeight: 600, color: "#334155" }}
+                >
                   {route.from} → {route.to}
                 </Typography>
               </Box>
@@ -364,11 +434,26 @@ export default function HomePage() {
         >
           Kıbrıs&apos;nin Lider Otobüs Bileti Platformu
         </Typography>
-        <Typography sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85, mb: 1.5 }}>
-          Near East Way, Kıbrıs genelindeki yüzlerce otobüs firmasının seferlerini tek ekranda karşılaştırmanızı sağlayan kurumsal seyahat platformudur. 256-bit SSL şifreleme altyapısıyla güvenli ödeme imkânı sunmakta; hızlı bilet satın alma, kolay iptal ve iade süreçleriyle müşteri memnuniyetini ön planda tutmaktadır.
+        <Typography
+          sx={{
+            fontSize: "0.88rem",
+            color: "#64748b",
+            lineHeight: 1.85,
+            mb: 1.5,
+          }}
+        >
+          Near East Way, Kıbrıs genelindeki yüzlerce otobüs firmasının
+          seferlerini tek ekranda karşılaştırmanızı sağlayan kurumsal seyahat
+          platformudur. 256-bit SSL şifreleme altyapısıyla güvenli ödeme imkânı
+          sunmakta; hızlı bilet satın alma, kolay iptal ve iade süreçleriyle
+          müşteri memnuniyetini ön planda tutmaktadır.
         </Typography>
-        <Typography sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85 }}>
-          Promosyonlu seferler ve anlık koltuk durumu ile seyahat planlamanızı dakikalar içinde tamamlayın. İster iş ister tatil seyahati olsun, en uygun otobüs biletine ulaşmak için kalkış ve varış noktanızı seçin.
+        <Typography
+          sx={{ fontSize: "0.88rem", color: "#64748b", lineHeight: 1.85 }}
+        >
+          Promosyonlu seferler ve anlık koltuk durumu ile seyahat planlamanızı
+          dakikalar içinde tamamlayın. İster iş ister tatil seyahati olsun, en
+          uygun otobüs biletine ulaşmak için kalkış ve varış noktanızı seçin.
         </Typography>
       </Container>
 

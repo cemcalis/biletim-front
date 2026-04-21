@@ -7,6 +7,7 @@ import {
   Button,
   Container,
   Paper,
+  TextField,
   Tab,
   Tabs,
   Typography,
@@ -36,7 +37,10 @@ type Booking = {
 
 type ActiveTab = "bookings" | "payments";
 
-const STATUS_MAP: Record<Booking["status"], { label: string; bgcolor: string; color: string }> = {
+const STATUS_MAP: Record<
+  Booking["status"],
+  { label: string; bgcolor: string; color: string }
+> = {
   Confirmed: { label: "Onaylandı", bgcolor: "#dcfce7", color: "#16a34a" },
   Completed: { label: "Tamamlandı", bgcolor: "#e0f2fe", color: "#0369a1" },
   Canceled: { label: "İptal Edildi", bgcolor: "#fee2e2", color: "#dc2626" },
@@ -50,20 +54,39 @@ export default function MyBookingsPage() {
   const [tab, setTab] = useState<ActiveTab>("bookings");
   const [name] = useState(initialUser.name || "Ziyaretçi");
   const [email] = useState(initialUser.email || "");
+  const [queryEmail, setQueryEmail] = useState(initialUser.email || "");
 
   const loadBookings = useCallback(async () => {
-    if (!email) {
+    if (!queryEmail.trim()) {
       setBookings([]);
-      setMessage("Rezervasyonlarınızı görüntülemek için lütfen giriş yapın.");
+      setMessage("Rezervasyonları görmek için e-posta girin.");
       setLoading(false);
       return;
     }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(queryEmail.trim())) {
+      setBookings([]);
+      setMessage("Lütfen geçerli bir e-posta adresi girin.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setMessage("");
-    const data = await apiGet<Booking[]>(`/bookings?passengerEmail=${encodeURIComponent(email)}`);
-    setBookings(data);
-    setLoading(false);
-  }, [email]);
+    try {
+      const data = await apiGet<Booking[]>(
+        `/bookings?passengerEmail=${encodeURIComponent(queryEmail.trim())}`,
+      );
+      setBookings(data);
+    } catch {
+      setBookings([]);
+      setMessage(
+        "Rezervasyonlar yüklenemedi. E-posta adresinizi kontrol edip tekrar deneyin.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [queryEmail]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadBookings(), 0);
@@ -71,14 +94,18 @@ export default function MyBookingsPage() {
   }, [loadBookings]);
 
   async function onDownload(bookingCode: string) {
-    const ticket = await apiGet<{ ok: boolean; fileName: string; content: string }>(
-      `/bookings/${bookingCode}/ticket`
-    );
+    const ticket = await apiGet<{
+      ok: boolean;
+      fileName: string;
+      content: string;
+    }>(`/bookings/${bookingCode}/ticket`);
     if (!ticket.ok) {
       setMessage("Bilet dosyası oluşturulamadı.");
       return;
     }
-    const blob = new Blob([ticket.content], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([ticket.content], {
+      type: "text/plain;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -90,7 +117,7 @@ export default function MyBookingsPage() {
   async function onCancel(bookingCode: string) {
     const result = await apiRequest<{ ok: boolean; message?: string }>(
       `/bookings/${bookingCode}/cancel`,
-      "PATCH"
+      "PATCH",
     );
     if (!result.ok) {
       setMessage(result.message ?? "Rezervasyon iptal edilemedi.");
@@ -101,11 +128,27 @@ export default function MyBookingsPage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "#f8f9fa" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "#f8f9fa",
+      }}
+    >
       <UserNavbar active="bookings" />
 
       <Container maxWidth="lg" sx={{ py: 5, flex: 1 }}>
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            mb: 4,
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Box
               sx={{
@@ -119,12 +162,21 @@ export default function MyBookingsPage() {
                 flexShrink: 0,
               }}
             >
-              <Typography sx={{ color: "#D4AF37", fontWeight: 800, fontSize: "1rem" }}>
+              <Typography
+                sx={{ color: "#D4AF37", fontWeight: 800, fontSize: "1rem" }}
+              >
                 {name.slice(0, 2).toUpperCase()}
               </Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+              <Typography
+                sx={{
+                  fontSize: "1.5rem",
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  lineHeight: 1.2,
+                }}
+              >
                 Hoş geldiniz, {name}
               </Typography>
               <Typography sx={{ fontSize: "0.85rem", color: "#64748b" }}>
@@ -148,7 +200,6 @@ export default function MyBookingsPage() {
             Ana Sayfa
           </Button>
         </Box>
-
         <Box sx={{ mb: 3 }}>
           <Tabs
             value={tab}
@@ -166,21 +217,45 @@ export default function MyBookingsPage() {
               "& .MuiTabs-indicator": { bgcolor: "#002D62", height: 2 },
             }}
           >
-            <Tab value="bookings" label="Rezervasyonlarım" icon={<ConfirmationNumberOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
+            <Tab
+              value="bookings"
+              label="Rezervasyonlarım"
+              icon={<ConfirmationNumberOutlinedIcon sx={{ fontSize: 18 }} />}
+              iconPosition="start"
+            />
             <Tab value="payments" label="Ödeme Geçmişi" />
           </Tabs>
         </Box>
 
         {message && (
-          <Box sx={{ mb: 3, p: 1.5, bgcolor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 1 }}>
-            <Typography sx={{ fontSize: "0.85rem", color: "#1d4ed8" }}>{message}</Typography>
+          <Box
+            sx={{
+              mb: 3,
+              p: 1.5,
+              bgcolor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: 1,
+            }}
+          >
+            <Typography sx={{ fontSize: "0.85rem", color: "#1d4ed8" }}>
+              {message}
+            </Typography>
           </Box>
         )}
 
         {tab === "payments" && (
-          <Paper elevation={0} sx={{ p: 4, border: "1px solid #e2e8f0", borderRadius: 2, textAlign: "center" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 4,
+              border: "1px solid #e2e8f0",
+              borderRadius: 2,
+              textAlign: "center",
+            }}
+          >
             <Typography sx={{ fontSize: "0.9rem", color: "#64748b" }}>
-              Ödeme geçmişi rezervasyon kayıtlarından otomatik oluşturulmaktadır.
+              Ödeme geçmişi rezervasyon kayıtlarından otomatik
+              oluşturulmaktadır.
             </Typography>
           </Paper>
         )}
@@ -188,13 +263,28 @@ export default function MyBookingsPage() {
         {tab === "bookings" && (
           <Box sx={{ display: "grid", gap: 2 }}>
             {loading && (
-              <Paper elevation={0} sx={{ p: 3, border: "1px solid #e2e8f0", borderRadius: 2 }}>
-                <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>Rezervasyonlar yükleniyor...</Typography>
+              <Paper
+                elevation={0}
+                sx={{ p: 3, border: "1px solid #e2e8f0", borderRadius: 2 }}
+              >
+                <Typography sx={{ color: "#64748b", fontSize: "0.9rem" }}>
+                  Rezervasyonlar yükleniyor...
+                </Typography>
               </Paper>
             )}
             {!loading && bookings.length === 0 && (
-              <Paper elevation={0} sx={{ p: 5, border: "1px solid #e2e8f0", borderRadius: 2, textAlign: "center" }}>
-                <ConfirmationNumberOutlinedIcon sx={{ fontSize: 44, color: "#cbd5e1", mb: 1.5 }} />
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 5,
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 2,
+                  textAlign: "center",
+                }}
+              >
+                <ConfirmationNumberOutlinedIcon
+                  sx={{ fontSize: 44, color: "#cbd5e1", mb: 1.5 }}
+                />
                 <Typography sx={{ color: "#64748b", fontWeight: 500 }}>
                   Henüz rezervasyon bulunmamaktadır.
                 </Typography>
@@ -202,7 +292,13 @@ export default function MyBookingsPage() {
                   component={Link}
                   href="/search-buses"
                   variant="contained"
-                  sx={{ mt: 2, bgcolor: "#002D62", "&:hover": { bgcolor: "#001f44" }, textTransform: "none", fontWeight: 600 }}
+                  sx={{
+                    mt: 2,
+                    bgcolor: "#002D62",
+                    "&:hover": { bgcolor: "#001f44" },
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
                 >
                   Sefer Ara
                 </Button>
@@ -215,10 +311,29 @@ export default function MyBookingsPage() {
                 <Paper
                   key={booking.bookingCode}
                   elevation={0}
-                  sx={{ p: 3, border: "1px solid #e2e8f0", borderRadius: 2, ...paperHoverSx }}
+                  sx={{
+                    p: 3,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 2,
+                    ...paperHoverSx,
+                  }}
                 >
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "space-between" }}>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, minWidth: 200 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 3,
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.75,
+                        minWidth: 200,
+                      }}
+                    >
                       <Box
                         sx={{
                           display: "inline-flex",
@@ -234,31 +349,80 @@ export default function MyBookingsPage() {
                       >
                         {badge.label}
                       </Box>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "monospace" }}>
+                      <Typography
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: "#94a3b8",
+                          fontFamily: "monospace",
+                        }}
+                      >
                         #{booking.bookingCode}
                       </Typography>
-                      <Typography sx={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a" }}>
+                      <Typography
+                        sx={{
+                          fontSize: "1.1rem",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                        }}
+                      >
                         {booking.company}
                       </Typography>
-                      <Typography sx={{ fontSize: "0.85rem", color: "#64748b" }}>{booking.route}</Typography>
-                      <Typography sx={{ fontSize: "0.85rem", color: "#64748b" }}>
-                        {booking.travelDate} · {booking.departureTime} – {booking.arrivalTime}
+                      <Typography
+                        sx={{ fontSize: "0.85rem", color: "#64748b" }}
+                      >
+                        {booking.route}
+                      </Typography>
+                      <Typography
+                        sx={{ fontSize: "0.85rem", color: "#64748b" }}
+                      >
+                        {booking.travelDate} · {booking.departureTime} –{" "}
+                        {booking.arrivalTime}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, textAlign: { xs: "left", sm: "right" } }}>
-                      <Typography sx={{ fontSize: "0.85rem", color: "#64748b" }}>
-                        Koltuk: <strong style={{ color: "#0f172a" }}>{booking.seatNumber}</strong>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.75,
+                        textAlign: { xs: "left", sm: "right" },
+                      }}
+                    >
+                      <Typography
+                        sx={{ fontSize: "0.85rem", color: "#64748b" }}
+                      >
+                        Koltuk:{" "}
+                        <strong style={{ color: "#0f172a" }}>
+                          {booking.seatNumber}
+                        </strong>
                       </Typography>
-                      <Typography sx={{ fontSize: "0.85rem", color: "#64748b" }}>
-                        Yolcu: <strong style={{ color: "#0f172a" }}>{booking.passengers}</strong>
+                      <Typography
+                        sx={{ fontSize: "0.85rem", color: "#64748b" }}
+                      >
+                        Yolcu:{" "}
+                        <strong style={{ color: "#0f172a" }}>
+                          {booking.passengers}
+                        </strong>
                       </Typography>
-                      <Typography sx={{ fontSize: "1.35rem", fontWeight: 800, color: "#002D62" }}>
+                      <Typography
+                        sx={{
+                          fontSize: "1.35rem",
+                          fontWeight: 800,
+                          color: "#002D62",
+                        }}
+                      >
                         ₺{booking.totalPrice}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 130 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                        minWidth: 130,
+                      }}
+                    >
                       <Button
                         onClick={() => void onDownload(booking.bookingCode)}
                         variant="contained"
@@ -284,8 +448,14 @@ export default function MyBookingsPage() {
                           fontSize: "0.85rem",
                           borderColor: "#fecaca",
                           color: "#dc2626",
-                          "&:hover": { borderColor: "#dc2626", bgcolor: "transparent" },
-                          "&:disabled": { borderColor: "#e2e8f0", color: "#94a3b8" },
+                          "&:hover": {
+                            borderColor: "#dc2626",
+                            bgcolor: "transparent",
+                          },
+                          "&:disabled": {
+                            borderColor: "#e2e8f0",
+                            color: "#94a3b8",
+                          },
                         }}
                       >
                         İptal Et

@@ -115,6 +115,10 @@ export default function LoginPage() {
 
           <Divider sx={{ my: 3 }} />
 
+          <Typography sx={{ mb: 1, fontSize: "0.85rem", color: "#475569", textAlign: "center", fontWeight: 700 }}>
+            Google ile giriş
+          </Typography>
+
           {hasGoogleClientId() ? (
             <GoogleLogin
               onSuccess={async (credentialResponse: CredentialResponse) => {
@@ -126,17 +130,31 @@ export default function LoginPage() {
                   }
                   await handleGoogleAuth(credentialResponse.credential);
                   router.push("/my-bookings");
-                } catch {
-                  setError("Google ile giriş başarısız oldu. Lütfen tekrar deneyin.");
+                } catch (err: unknown) {
+                  // Show specific error message from backend if available
+                  const errorMsg =
+                    err instanceof Error
+                      ? err.message
+                      : "Google ile giriş başarısız oldu. Lütfen tekrar deneyin.";
+                  setError(errorMsg);
                 } finally {
                   setLoading(false);
                 }
               }}
               onError={() => {
-                setError("Google kimlik doğrulama sırasında bir hata oluştu.");
+                setError("Google giriş penceresi kapatıldı veya bir hata oluştu.");
               }}
             />
-          ) : null}
+          ) : (
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => setError("Google girişi için NEXT_PUBLIC_GOOGLE_CLIENT_ID ayarı eksik.")}
+              sx={{ height: 42, textTransform: "none", fontWeight: 700 }}
+            >
+              Google ile Giriş Yap
+            </Button>
+          )}
 
           <Typography sx={{ mt: 3, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
             Şifrenizi mi unuttunuz?{" "}

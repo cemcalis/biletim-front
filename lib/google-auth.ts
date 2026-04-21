@@ -18,8 +18,9 @@ export async function handleGoogleAuth(googleToken: string) {
 
     setStoredUser(response.user.name, response.user.email, response.access_token);
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Google auth failed:", error);
-    throw error;
+    // Re-throw with the error message from backend
+    throw new Error(error?.message || "Google ile giriş başarısız oldu");
   }
 }

@@ -1,11 +1,38 @@
 "use client";
 
+import createCache from "@emotion/cache";
+import { CacheProvider } from "@emotion/react";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { PropsWithChildren, useMemo } from "react";
-import { GOOGLE_CLIENT_ID } from "@/lib/google-config";
+import { PropsWithChildren, useMemo, useState } from "react";
+import { useServerInsertedHTML } from "next/navigation";
+import { GOOGLE_CLIENT_ID, hasGoogleClientId } from "@/lib/google-config";
 
 export function Providers({ children }: PropsWithChildren) {
+  const [cache] = useState(() => createCache({ key: "mui", prepend: true }));
+
+  useServerInsertedHTML(() => {
+    const insertedNames = Object.keys(cache.inserted);
+    if (insertedNames.length === 0) {
+      return null;
+    }
+
+    let css = "";
+    for (const name of insertedNames) {
+      const style = cache.inserted[name];
+      if (typeof style === "string") {
+        css += style;
+      }
+    }
+
+    return (
+      <style
+        data-emotion={`${cache.key} ${insertedNames.join(" ")}`}
+        dangerouslySetInnerHTML={{ __html: css }}
+      />
+    );
+  });
+
   const theme = useMemo(
     () =>
       createTheme({
@@ -51,12 +78,18 @@ export function Providers({ children }: PropsWithChildren) {
     [],
   );
 
-  return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+  const content = (
+    <CacheProvider value={cache}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}
       </ThemeProvider>
-    </GoogleOAuthProvider>
+    </CacheProvider>
   );
+
+  if (!hasGoogleClientId()) {
+    return content;
+  }
+
+  return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{content}</GoogleOAuthProvider>;
 }

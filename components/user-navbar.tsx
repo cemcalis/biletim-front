@@ -9,23 +9,18 @@ import {
   Button,
   Container,
   Divider,
-  Drawer,
   IconButton,
-  List,
-  ListItem,
-  ListItemButton,
   Paper,
   Popover,
   TextField,
   Toolbar,
   Typography,
 } from "@mui/material";
-import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import CloseIcon from "@mui/icons-material/Close";
 import { clearStoredUser, getStoredUser, setStoredUser, type User as StoredUser } from "../lib/session";
 
 type UserNavbarProps = {
-  active: "home" | "search" | "track" | "bookings" | "admin";
+  active: "home" | "search" | "track" | "bookings" | "admin" | "my-account";
   variant?: "default" | "hero";
 };
 
@@ -34,6 +29,7 @@ const navItems = [
   { label: "Sefer Sorgulama", href: "/search-buses", key: "search" as const },
   { label: "Sefer İzleme", href: "/track-bus", key: "track" as const },
   { label: "Rezervasyonlarım", href: "/my-bookings", key: "bookings" as const },
+  { label: "Hesabım", href: "/my-account", key: "my-account" as const },
 ];
 
 const adminNavItem = { label: "Yönetim Paneli", href: "/admin", key: "admin" as const };
@@ -46,7 +42,6 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
   const [formEmail, setFormEmail] = useState("");
   const [profileInfo, setProfileInfo] = useState("");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<StoredUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -89,14 +84,6 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
     setUser(null);
     setIsAdmin(false);
     window.location.href = "/";
-  }
-
-  function toggleMobileMenu() {
-    setMobileOpen((prev) => !prev);
-  }
-
-  function closeMobileMenu() {
-    setMobileOpen(false);
   }
 
   function openProfileMenu(event: MouseEvent<HTMLElement>) {
@@ -287,124 +274,9 @@ export default function UserNavbar({ active, variant = "default" }: UserNavbarPr
                 </Button>
               </>
             )}
-            <IconButton
-              size="small"
-              onClick={toggleMobileMenu}
-              sx={{ color: isHero ? "#fff" : "#64748b", display: { xs: "inline-flex", lg: "none" } }}
-            >
-              {mobileOpen ? <CloseIcon /> : <MenuRoundedIcon />}
-            </IconButton>
           </Box>
         </Toolbar>
       </Container>
-
-      <Drawer
-        anchor="right"
-        open={mobileOpen}
-        onClose={closeMobileMenu}
-        slotProps={{
-          paper: {
-            sx: { width: { xs: "85vw", sm: 320 }, bgcolor: "#ffffff" },
-          },
-        }}
-      >
-        <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography sx={{ fontWeight: 700, color: "#002D62", fontSize: "1.1rem" }}>
-            Menü
-          </Typography>
-          <IconButton onClick={closeMobileMenu}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-        <Divider />
-        <List sx={{ pt: 1 }}>
-          {navItems.map((item) => (
-            <ListItem key={item.key} disablePadding>
-              <ListItemButton
-                component={Link}
-                href={item.href}
-                onClick={closeMobileMenu}
-                selected={active === item.key}
-                sx={{
-                  py: 1.5,
-                  px: 2,
-                  color: active === item.key ? "#002D62" : "#64748b",
-                  fontWeight: active === item.key ? 700 : 600,
-                  borderLeft: active === item.key ? "3px solid #002D62" : "3px solid transparent",
-                  "&:hover": { bgcolor: "#f8fafc" },
-                }}
-              >
-                {item.label}
-              </ListItemButton>
-            </ListItem>
-          ))}
-          {isAdmin && (
-            <ListItem key={adminNavItem.key} disablePadding>
-              <ListItemButton
-                component={Link}
-                href={adminNavItem.href}
-                onClick={closeMobileMenu}
-                selected={active === adminNavItem.key}
-                sx={{
-                  py: 1.5,
-                  px: 2,
-                  color: active === adminNavItem.key ? "#002D62" : "#64748b",
-                  fontWeight: active === adminNavItem.key ? 700 : 600,
-                  borderLeft: active === adminNavItem.key ? "3px solid #002D62" : "3px solid transparent",
-                  "&:hover": { bgcolor: "#f8fafc" },
-                }}
-              >
-                {adminNavItem.label}
-              </ListItemButton>
-            </ListItem>
-          )}
-        </List>
-        <Divider />
-        <Box sx={{ p: 2 }}>
-          {displayName ? (
-            <>
-              <Typography sx={{ fontWeight: 600, color: "#0f172a", mb: 0.5 }}>
-                {displayName}
-              </Typography>
-              <Typography sx={{ fontSize: "0.8rem", color: "#64748b", mb: 2 }}>
-                {email}
-              </Typography>
-              <Button
-                onClick={() => { onLogout(); closeMobileMenu(); }}
-                variant="outlined"
-                color="error"
-                fullWidth
-                sx={{ textTransform: "none", fontWeight: 600 }}
-              >
-                Çıkış Yap
-              </Button>
-            </>
-          ) : (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Button
-                component={Link}
-                href="/login"
-                onClick={closeMobileMenu}
-                variant="outlined"
-                fullWidth
-                sx={{ textTransform: "none", fontWeight: 600 }}
-              >
-                Giriş Yap
-              </Button>
-              <Button
-                component={Link}
-                href="/register"
-                onClick={closeMobileMenu}
-                variant="contained"
-                fullWidth
-                sx={{ textTransform: "none", fontWeight: 600, bgcolor: "#002D62" }}
-              >
-                Kayıt Ol
-              </Button>
-            </Box>
-          )}
-        </Box>
-      </Drawer>
 
       <Popover
         open={popoverOpen}

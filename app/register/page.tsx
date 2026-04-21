@@ -38,8 +38,8 @@ export default function RegisterPage() {
       setError("Lütfen tüm alanları doldurunuz.");
       return;
     }
-    if (password.length < 6) {
-      setError("Şifre en az 6 karakter olmalıdır.");
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+      setError("Şifre en az 8 karakter olmalı ve harf ile rakam içermelidir.");
       return;
     }
     if (password !== confirmPassword) {
@@ -139,6 +139,10 @@ export default function RegisterPage() {
 
           <Divider sx={{ my: 3 }} />
 
+          <Typography sx={{ mb: 1, fontSize: "0.85rem", color: "#475569", textAlign: "center", fontWeight: 700 }}>
+            Google ile kayıt
+          </Typography>
+
           {hasGoogleClientId() ? (
             <GoogleLogin
               onSuccess={async (credentialResponse: CredentialResponse) => {
@@ -160,7 +164,16 @@ export default function RegisterPage() {
                 setError("Google kimlik doğrulama sırasında bir hata oluştu.");
               }}
             />
-          ) : null}
+          ) : (
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => setError("Google kaydı için NEXT_PUBLIC_GOOGLE_CLIENT_ID ayarı eksik.")}
+              sx={{ height: 42, textTransform: "none", fontWeight: 700 }}
+            >
+              Google ile Kayıt Ol
+            </Button>
+          )}
 
           <Typography sx={{ mt: 3, fontSize: "0.85rem", color: "#64748b", textAlign: "center" }}>
             Zaten hesabınız var mı?{" "}
